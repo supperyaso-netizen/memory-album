@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Lock, Award, ArrowLeft, Star, Check, Headphones, Play, X } from 'lucide-react';
+import { Lock, Award, ArrowLeft, Star, Check, Headphones, Play, X, Youtube } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 const WrongAnswerMessage = ({ attempt, onClose }) => {
@@ -123,51 +123,70 @@ const CorrectAnswerMessage = ({ onComplete }) => {
   );
 };
 
-// Secret Videos Data - Update with YOUR video paths
-const secretVideos = [
-  {
-    id: 1,
-    title: "Our first video call 💕",
-    videoUrl: "/videos/secret1.mp4",  // Put video in public/videos/ folder
-    thumbnail: "/videos/pookie.jpg",
-    duration: "58:23",
-    date: " 06 April 2026"
-  },
-  {
-    id: 2,
-    title: "VC with my Pookie  🐾",
-    videoUrl: "/videos/secret2.mp4",
-    thumbnail: "/videos/pookie.jpg",
-    duration: "46:30",
-    date: " 07 April 2026"
-  },
-  {
-    id: 3,
-    title: "VC with my Pookie  ✨",
-    videoUrl: "https://youtu.be/KqeP8wmBmuE?si=ZQbeAnaUbjmTTIrm",
-    thumbnail: "/videos/pookie.jpg",
-    duration: "01:31:55",
-    date: " 08 April 2026"
-  },
-  {
-    id: 4,
-    title: "VC with my Pookie  💌",
-    videoUrl: "/videos/secret4.mp4",
-    thumbnail: "/videos/pookie.jpg",
-    duration: "53:18",
-    date: " 09 April 2026"
-  },
-  {
-    id: 5,
-    title: "VC with my Pookie  💌",
-    videoUrl: "/videos/secret5.mp4",
-    thumbnail: "/videos/pookie.jpg",
-    duration: "33:29",
-    date: " 16 May 2026"
+// Function to extract YouTube video ID from various URL formats
+const getYouTubeVideoId = (url) => {
+  const patterns = [
+    /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/v\/)([^&\n?#]+)/,
+    /youtube\.com\/watch\?.*v=([^&\n?#]+)/,
+    /youtu\.be\/([^&\n?#]+)/
+  ];
+  
+  for (const pattern of patterns) {
+    const match = url.match(pattern);
+    if (match && match[1]) {
+      return match[1];
+    }
   }
-];
+  return null;
+};
 
-const VideoModal = ({ video, onClose }) => {
+// Check if URL is a YouTube link
+const isYouTubeUrl = (url) => {
+  return url.includes('youtube.com') || url.includes('youtu.be');
+};
+
+// YouTube Video Player Component
+const YouTubePlayer = ({ videoId, title, onClose }) => {
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-50 bg-black/95 backdrop-blur-lg flex items-center justify-center p-4"
+      onClick={onClose}
+    >
+      <button
+        onClick={onClose}
+        className="absolute top-4 right-4 z-10 bg-black/50 p-2 rounded-full hover:bg-black/70 transition"
+      >
+        <X className="w-6 h-6 text-white" />
+      </button>
+      
+      <div className="max-w-4xl w-full" onClick={(e) => e.stopPropagation()}>
+        <div className="relative pb-[56.25%] h-0 rounded-2xl overflow-hidden">
+          <iframe
+            className="absolute top-0 left-0 w-full h-full"
+            src={`https://www.youtube.com/embed/${videoId}?autoplay=1&rel=0&modestbranding=1&showinfo=0&controls=1&color=white&iv_load_policy=3`}
+            title={title}
+            frameBorder="0"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+            allowFullScreen
+          ></iframe>
+        </div>
+        <div className="mt-4 text-center">
+          <h3 className="text-white text-xl">{title}</h3>
+          <div className="flex items-center justify-center gap-2 mt-2">
+            <Youtube className="w-5 h-5 text-red-500" />
+            <p className="text-rose-400 text-sm">YouTube Video</p>
+          </div>
+        </div>
+      </div>
+    </motion.div>
+  );
+};
+
+// Local Video Player Component
+const LocalVideoPlayer = ({ video, onClose }) => {
   const [videoError, setVideoError] = useState(false);
   
   return (
@@ -223,6 +242,86 @@ const VideoModal = ({ video, onClose }) => {
   );
 };
 
+// Main Video Modal Component that decides which player to use
+const VideoModal = ({ video, onClose }) => {
+  const isYouTube = isYouTubeUrl(video.videoUrl);
+  const videoId = isYouTube ? getYouTubeVideoId(video.videoUrl) : null;
+  
+  if (isYouTube && videoId) {
+    return <YouTubePlayer videoId={videoId} title={video.title} onClose={onClose} />;
+  } else if (!isYouTube) {
+    return <LocalVideoPlayer video={video} onClose={onClose} />;
+  } else {
+    // Invalid YouTube URL
+    return (
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="fixed inset-0 z-50 bg-black/95 backdrop-blur-lg flex items-center justify-center p-4"
+        onClick={onClose}
+      >
+        <div className="bg-gradient-to-br from-red-950/30 to-black/50 rounded-2xl p-8 text-center border border-red-500/30 max-w-md">
+          <div className="text-6xl mb-4">⚠️</div>
+          <h3 className="text-white text-xl mb-2">Invalid YouTube URL</h3>
+          <p className="text-gray-400 mb-4">Please check the YouTube link and try again.</p>
+          <button
+            onClick={onClose}
+            className="bg-rose-500/20 hover:bg-rose-500/30 text-white px-6 py-2 rounded-lg transition"
+          >
+            Close
+          </button>
+        </div>
+      </motion.div>
+    );
+  }
+};
+
+// Secret Videos Data - Mixed with local videos and YouTube links
+const secretVideos = [
+  {
+    id: 1,
+    title: "Our first video call 💕",
+    videoUrl: "/videos/secret1.mp4",  // Local video in public/videos/
+    thumbnail: "/videos/pookie.jpg",
+    duration: "58:23",
+    date: "06 April 2026"
+  },
+  {
+    id: 2,
+    title: "VC with my Pookie 🐾",
+    videoUrl: "/videos/secret2.mp4",  // Local video in public/videos/
+    thumbnail: "/videos/pookie.jpg",
+    duration: "46:30",
+    date: "07 April 2026"
+  },
+  {
+    id: 3,
+    title: "VC with my Pookie ✨",
+    videoUrl: "https://youtu.be/KqeP8wmBmuE", // YouTube link
+    thumbnail: "/videos/pookie.jpg",
+    duration: "01:31:55",
+    date: "08 April 2026",
+    isYouTube: true
+  },
+  {
+    id: 4,
+    title: "VC with my Pookie 💌",
+    videoUrl: "/videos/secret4.mp4",  // Local video in public/videos/
+    thumbnail: "/videos/pookie.jpg",
+    duration: "53:18",
+    date: "09 April 2026"
+  },
+  {
+    id: 5,
+    title: "VC with my Pookie 💌",
+    videoUrl: "/videos/secret5.mp4",  // Local video in public/videos/
+    thumbnail: "/videos/pookie.jpg",
+    duration: "33:29",
+    date: "16 May 2026"
+  }
+];
+
 const SecretVideoGallery = () => {
   const [selectedVideo, setSelectedVideo] = useState(null);
   
@@ -230,8 +329,7 @@ const SecretVideoGallery = () => {
     <div className="space-y-6">
       <div className="text-center">
         <div className="inline-flex items-center gap-2 bg-gradient-to-r from-rose-500 to-amber-500 rounded-full px-6 py-3 mb-6">
-          
-          <span className="text-white font-semibold"> ennoda voice kekkathu</span>
+          <span className="text-white font-semibold">ennoda voice kekkathu</span>
         </div>
       </div>
       
@@ -255,12 +353,23 @@ const SecretVideoGallery = () => {
               <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
               <div className="absolute inset-0 bg-black/40 group-hover:bg-black/20 transition duration-300 flex items-center justify-center">
                 <div className="w-16 h-16 bg-rose-500/80 rounded-full flex items-center justify-center group-hover:scale-110 transition">
-                  <Play className="w-8 h-8 text-white ml-1" />
+                  {video.isYouTube ? (
+                    <Youtube className="w-8 h-8 text-white" />
+                  ) : (
+                    <Play className="w-8 h-8 text-white ml-1" />
+                  )}
                 </div>
               </div>
-              <div className="absolute bottom-2 right-2 bg-black/70 px-2 py-1 rounded text-sm">
-                {video.duration}
+              <div className="absolute bottom-2 right-2 bg-black/70 px-2 py-1 rounded text-sm flex items-center gap-1">
+                {video.isYouTube && <Youtube className="w-3 h-3 text-red-500" />}
+                <span>{video.duration}</span>
               </div>
+              {video.isYouTube && (
+                <div className="absolute top-2 right-2 bg-red-600/90 px-2 py-1 rounded text-xs flex items-center gap-1">
+                  <Youtube className="w-3 h-3" />
+                  <span>YouTube</span>
+                </div>
+              )}
             </div>
             <div className="mt-3">
               <h3 className="text-white font-semibold">{video.title}</h3>
@@ -294,7 +403,6 @@ export default function SecretVideoPage() {
     { value: 'march 22', label: 'March 22, 2026', emoji: '💕' },
     { value: 'june 15', label: 'June 15, 2026', emoji: '✨' },
     { value: 'may 06', label: 'May 6, 2026', emoji: '💋' }
-    
   ];
   
   const handleUnlock = () => {
