@@ -18,7 +18,6 @@ const formatDuration = (seconds) => {
 const parseDurationString = (durationStr) => {
   if (!durationStr) return 0;
   
-  // Handle "00:15 / 17:38" format
   if (durationStr.includes('/')) {
     const parts = durationStr.split('/');
     durationStr = parts[1]?.trim() || parts[0]?.trim();
@@ -26,17 +25,15 @@ const parseDurationString = (durationStr) => {
   
   const parts = durationStr.split(':');
   if (parts.length === 3) {
-    // HH:MM:SS
     return parseInt(parts[0]) * 3600 + parseInt(parts[1]) * 60 + parseInt(parts[2]);
   } else if (parts.length === 2) {
-    // MM:SS
     return parseInt(parts[0]) * 60 + parseInt(parts[1]);
   } else {
     return parseInt(parts[0]) || 0;
   }
 };
 
-// Audio Seek Bar with full control
+// Audio Seek Bar
 const AudioSeekBar = ({ currentTime, duration, onSeek }) => {
   const [isDragging, setIsDragging] = useState(false);
   const [seekValue, setSeekValue] = useState(0);
@@ -112,7 +109,7 @@ const AudioSeekBar = ({ currentTime, duration, onSeek }) => {
   );
 };
 
-// Simple animated waveform
+// Audio Waveform
 const AudioWaveform = ({ isPlaying }) => {
   return (
     <div className="flex items-center gap-0.5 h-8">
@@ -136,7 +133,7 @@ const AudioWaveform = ({ isPlaying }) => {
   );
 };
 
-// Add Call Modal Component
+// Add Call Modal
 const AddCallModal = ({ onClose, onAdd, isOpen }) => {
   const [callTitle, setCallTitle] = useState('');
   const [callDate, setCallDate] = useState(new Date().toISOString().split('T')[0]);
@@ -482,7 +479,7 @@ const CallCard = ({ call, index, isPlaying, onPlay, onPause, onEdit, onDelete })
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
             <div className="relative">
-              <div className="w-12 h-12 rounded-full bg-rose-500/20 flex items-center justify-center">
+              <div className="w-12 h-12 rounded-full bg-gradient-to-r from-rose-500/30 to-rose-600/30 flex items-center justify-center">
                 <Phone className="w-5 h-5 text-rose-400" />
               </div>
               {isPlaying && (
@@ -495,7 +492,7 @@ const CallCard = ({ call, index, isPlaying, onPlay, onPause, onEdit, onDelete })
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <p className="text-white font-bold text-xl">{call.title}</p>
+                <p className="text-white font-bold text-2xl">{call.title}</p>
               </div>
               <div className="flex flex-wrap items-center gap-3 mt-1">
                 <div className="flex items-center gap-1 text-rose-400 text-xs">
@@ -515,10 +512,18 @@ const CallCard = ({ call, index, isPlaying, onPlay, onPause, onEdit, onDelete })
           </div>
           
           <div className="flex gap-2">
-            <button onClick={() => setIsEditing(true)} className="text-blue-400 hover:text-blue-300 transition p-1">
+            <button 
+              onClick={() => setIsEditing(true)} 
+              className="text-blue-400 hover:text-blue-300 transition p-2 rounded-lg hover:bg-white/10"
+              title="Edit"
+            >
               <Edit2 className="w-4 h-4" />
             </button>
-            <button onClick={() => onDelete(call.id)} className="text-red-400 hover:text-red-300 transition p-1">
+            <button 
+              onClick={() => onDelete(call.id)} 
+              className="text-red-400 hover:text-red-300 transition p-2 rounded-lg hover:bg-white/10"
+              title="Delete"
+            >
               <X className="w-4 h-4" />
             </button>
           </div>
@@ -528,7 +533,6 @@ const CallCard = ({ call, index, isPlaying, onPlay, onPause, onEdit, onDelete })
           <div className="mb-3 flex items-center gap-1 text-xs text-rose-400/60">
             <Cloud className="w-3 h-3" />
             <span>Cloud Audio</span>
-            <span className="text-gray-500 ml-1">({call.title})</span>
           </div>
         )}
         
@@ -616,11 +620,11 @@ export default function CallsPage() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   
-  // Complete data from your table (82 calls with durations) - ORDERED 1 to 82
+  // Complete data from 1 to 82 with CLEAR TITLES
   const generateAudioCalls = () => {
     const baseUrl = "https://lghzrewutybboombrafj.supabase.co/storage/v1/object/public/audio";
     
-    // All 82 calls ordered from 1 to 82
+    // All 82 calls ordered from 1 to 82 with clear titles
     const callsData = [
       { number: 1, title: "Lucy(1)", date: "2026-01-05", time: "4:10 pm", durationStr: "00:15" },
       { number: 2, title: "Lucy(2)", date: "2026-01-10", time: "4:13 pm", durationStr: "16:47" },
@@ -723,7 +727,6 @@ export default function CallsPage() {
   
   const allAudioCalls = generateAudioCalls();
   
-  // Load calls from localStorage or use generated data
   useEffect(() => {
     loadCalls();
     
@@ -779,7 +782,6 @@ export default function CallsPage() {
     }
   };
   
-  // Filter by search term
   const filteredCalls = calls.filter(call => {
     const matchesSearch = searchTerm === '' || 
       call.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -849,21 +851,19 @@ export default function CallsPage() {
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
               <input
                 type="text"
-                placeholder="Search by call title..."
+                placeholder="Search by title (Lucy, Lucy1, etc)..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full bg-black/50 border border-rose-500/30 rounded-lg pl-10 pr-4 py-2 text-white placeholder-gray-500 focus:outline-none focus:border-rose-500 transition"
               />
             </div>
-            <div className="flex gap-3">
-              <button
-                onClick={() => setShowAddModal(true)}
-                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-rose-500 to-rose-600 text-white hover:shadow-lg hover:shadow-rose-500/30 transition"
-              >
-                <Plus className="w-4 h-4" />
-                Add Call
-              </button>
-            </div>
+            <button
+              onClick={() => setShowAddModal(true)}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-rose-500 to-rose-600 text-white hover:shadow-lg hover:shadow-rose-500/30 transition"
+            >
+              <Plus className="w-4 h-4" />
+              Add Call
+            </button>
           </div>
           
           {/* Results Count */}
