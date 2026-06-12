@@ -144,7 +144,7 @@ const secretVideos = [
   {
     id: 3,
     title: "VC with my Pookie  ✨",
-    videoUrl: "/videos/secret3.mp4",
+    videoUrl: "https://youtu.be/KqeP8wmBmuE?si=ZQbeAnaUbjmTTIrm",
     thumbnail: "/videos/pookie.jpg",
     duration: "01:31:55",
     date: " 08 April 2026"
