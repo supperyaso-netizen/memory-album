@@ -615,7 +615,7 @@ export default function CallsPage() {
     const baseUrl = "https://lghzrewutybboombrafj.supabase.co/storage/v1/object/public/audio";
     
     const callsData = [
-      { number: 1, title: "Lucy(1)", date: "2026-01-05", time: "4:10 pm", durationStr: "00:15" },
+      { number: 1, title: "Lucy(1)", date: "2026-01-05", time: "4:10 pm", durationStr: "17:38" },
       { number: 2, title: "Lucy(2)", date: "2026-01-10", time: "4:13 pm", durationStr: "16:47" },
       { number: 3, title: "Lucy(3)", date: "2026-02-20", time: "7:20 am", durationStr: "11:41" },
       { number: 4, title: "Lucy(4)", date: "2026-02-24", time: "7:21 am", durationStr: "12:23" },
