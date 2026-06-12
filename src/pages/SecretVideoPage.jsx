@@ -282,7 +282,7 @@ const secretVideos = [
   {
     id: 1,
     title: "Our first video call 💕",
-    videoUrl: "/videos/secret1.mp4",  // Local video in public/videos/
+    videoUrl: "https://youtu.be/KqeP8wmBmuE",  // Local video in public/videos/
     thumbnail: "/videos/pookie.jpg",
     duration: "58:23",
     date: "06 April 2026"
@@ -298,7 +298,7 @@ const secretVideos = [
   {
     id: 3,
     title: "VC with my Pookie ✨",
-    videoUrl: "https://youtu.be/KqeP8wmBmuE", // YouTube link
+    videoUrl: "", // YouTube link
     thumbnail: "/videos/pookie.jpg",
     duration: "01:31:55",
     date: "08 April 2026",
