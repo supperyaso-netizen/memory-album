@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   ArrowLeft, Heart, Play, Pause, Phone, Clock, 
   Star, Volume2, VolumeX, Music, Zap, User, Calendar,
-  Plus, Mic, Upload, X, Check, AlertCircle
+  Cloud
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
@@ -114,247 +114,6 @@ const AudioWaveform = ({ isPlaying }) => {
   );
 };
 
-// Add Call Modal Component
-const AddCallModal = ({ onClose, onAdd, isOpen }) => {
-  const [callName, setCallName] = useState('');
-  const [callDate, setCallDate] = useState(new Date().toISOString().split('T')[0]);
-  const [callTime, setCallTime] = useState(new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }));
-  const [audioFile, setAudioFile] = useState(null);
-  const [isFavorite, setIsFavorite] = useState(false);
-  const [duration, setDuration] = useState(0);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState('');
-  const audioRef = useRef(null);
-
-  const handleFileSelect = (e) => {
-    const file = e.target.files[0];
-    if (file && file.type.startsWith('audio/')) {
-      setAudioFile(file);
-      setError('');
-      
-      // Create temporary URL to get duration
-      const url = URL.createObjectURL(file);
-      const tempAudio = new Audio(url);
-      tempAudio.addEventListener('loadedmetadata', () => {
-        setDuration(Math.floor(tempAudio.duration));
-        URL.revokeObjectURL(url);
-      });
-      tempAudio.addEventListener('error', () => {
-        setError('Unable to read audio file duration');
-      });
-    } else {
-      setError('Please select a valid audio file (MP3, WAV, etc.)');
-    }
-  };
-
-  const handleSubmit = async () => {
-    if (!callName.trim()) {
-      setError('Please enter a name for this call');
-      return;
-    }
-    if (!audioFile) {
-      setError('Please select an audio file');
-      return;
-    }
-
-    setIsLoading(true);
-    setError('');
-
-    try {
-      // Create blob URL for the audio file
-      const audioUrl = URL.createObjectURL(audioFile);
-      
-      const newCall = {
-        id: Date.now(),
-        name: callName.trim(),
-        date: callDate,
-        time: callTime,
-        audioUrl: audioUrl,
-        duration: duration,
-        durationFormatted: formatDuration(duration),
-        isFavorite: isFavorite,
-        createdAt: new Date().toISOString()
-      };
-
-      // Get existing calls from localStorage
-      const existingCalls = localStorage.getItem('admin_calls');
-      let calls = existingCalls ? JSON.parse(existingCalls) : [];
-      
-      // Add new call
-      calls.push(newCall);
-      
-      // Save back to localStorage
-      localStorage.setItem('admin_calls', JSON.stringify(calls));
-      
-      // Trigger storage event for other tabs/components
-      window.dispatchEvent(new StorageEvent('storage', {
-        key: 'admin_calls',
-        newValue: JSON.stringify(calls)
-      }));
-      
-      onAdd(newCall);
-      onClose();
-    } catch (err) {
-      setError('Failed to save call. Please try again.');
-      console.error(err);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  if (!isOpen) return null;
-
-  return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md"
-      onClick={onClose}
-    >
-      <motion.div
-        initial={{ scale: 0.9, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        exit={{ scale: 0.9, opacity: 0 }}
-        className="bg-gradient-to-br from-rose-950/30 to-black/80 backdrop-blur-xl rounded-2xl p-6 max-w-md w-full border border-rose-500/30 shadow-2xl"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-bold text-white flex items-center gap-2">
-            <Mic className="w-6 h-6 text-rose-400" />
-            Add New Call
-          </h2>
-          <button
-            onClick={onClose}
-            className="p-2 hover:bg-white/10 rounded-full transition"
-          >
-            <X className="w-5 h-5 text-gray-400" />
-          </button>
-        </div>
-
-        {error && (
-          <div className="mb-4 p-3 bg-red-500/20 border border-red-500/30 rounded-lg flex items-center gap-2">
-            <AlertCircle className="w-4 h-4 text-red-400" />
-            <p className="text-red-400 text-sm">{error}</p>
-          </div>
-        )}
-
-        <div className="space-y-4">
-          {/* Name Input */}
-          <div>
-            <label className="block text-rose-400 text-sm mb-2">Call Name / Person</label>
-            <input
-              type="text"
-              value={callName}
-              onChange={(e) => setCallName(e.target.value)}
-              placeholder="e.g., Bala Bharathi, Mom, Best Friend"
-              className="w-full bg-black/50 border border-rose-500/30 rounded-lg px-4 py-2 text-white placeholder-gray-500 focus:outline-none focus:border-rose-500 transition"
-            />
-          </div>
-
-          {/* Date and Time */}
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-rose-400 text-sm mb-2">Date</label>
-              <input
-                type="date"
-                value={callDate}
-                onChange={(e) => setCallDate(e.target.value)}
-                className="w-full bg-black/50 border border-rose-500/30 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-rose-500 transition"
-              />
-            </div>
-            <div>
-              <label className="block text-rose-400 text-sm mb-2">Time</label>
-              <input
-                type="time"
-                value={callTime}
-                onChange={(e) => setCallTime(e.target.value)}
-                className="w-full bg-black/50 border border-rose-500/30 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-rose-500 transition"
-              />
-            </div>
-          </div>
-
-          {/* Audio File Upload */}
-          <div>
-            <label className="block text-rose-400 text-sm mb-2">Audio Recording</label>
-            <div className="relative">
-              <input
-                type="file"
-                accept="audio/*"
-                onChange={handleFileSelect}
-                className="hidden"
-                id="audio-upload"
-              />
-              <label
-                htmlFor="audio-upload"
-                className="flex items-center justify-center gap-2 w-full bg-gradient-to-r from-rose-500/20 to-amber-500/20 border-2 border-dashed border-rose-500/30 rounded-lg px-4 py-6 cursor-pointer hover:border-rose-500 transition group"
-              >
-                <Upload className="w-6 h-6 text-rose-400 group-hover:scale-110 transition" />
-                <div className="text-center">
-                  <p className="text-white text-sm">
-                    {audioFile ? audioFile.name : 'Click to upload audio file'}
-                  </p>
-                  <p className="text-gray-500 text-xs mt-1">
-                    MP3, WAV, M4A, OGG (Max 50MB)
-                  </p>
-                </div>
-              </label>
-            </div>
-            {audioFile && duration > 0 && (
-              <p className="text-green-400 text-xs mt-2">
-                ✓ Audio loaded • Duration: {formatDuration(duration)}
-              </p>
-            )}
-          </div>
-
-          {/* Favorite Toggle */}
-          <div className="flex items-center justify-between p-3 bg-black/30 rounded-lg">
-            <div className="flex items-center gap-2">
-              <Heart className={`w-5 h-5 ${isFavorite ? 'text-rose-500 fill-rose-500' : 'text-gray-400'}`} />
-              <span className="text-white">Mark as Favorite</span>
-            </div>
-            <button
-              onClick={() => setIsFavorite(!isFavorite)}
-              className={`w-12 h-6 rounded-full transition ${
-                isFavorite ? 'bg-rose-500' : 'bg-gray-600'
-              } relative`}
-            >
-              <div
-                className={`absolute top-1 w-4 h-4 bg-white rounded-full transition ${
-                  isFavorite ? 'right-1' : 'left-1'
-                }`}
-              />
-            </button>
-          </div>
-
-          {/* Submit Button */}
-          <button
-            onClick={handleSubmit}
-            disabled={isLoading || !audioFile || !callName.trim()}
-            className="w-full bg-gradient-to-r from-rose-500 to-rose-700 text-white py-3 rounded-lg font-semibold hover:shadow-lg hover:shadow-rose-500/30 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-          >
-            {isLoading ? (
-              <>
-                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                Saving...
-              </>
-            ) : (
-              <>
-                <Check className="w-5 h-5" />
-                Add Call Recording
-              </>
-            )}
-          </button>
-
-          <p className="text-gray-500 text-xs text-center">
-            💡 Tip: Use a voice recorder app to record calls, then upload here
-          </p>
-        </div>
-      </motion.div>
-    </motion.div>
-  );
-};
-
 const CallCard = ({ call, isPlaying, onPlay, onPause }) => {
   const audioRef = useRef(null);
   const [audioError, setAudioError] = useState(false);
@@ -451,9 +210,9 @@ const CallCard = ({ call, isPlaying, onPlay, onPause }) => {
     }
   };
 
-  // Validate audio URL - Check if it's a valid blob URL or file URL
+  // Validate audio URL - Support Supabase URLs
   const isValidAudioUrl = call.audioUrl && call.audioUrl !== '' && 
-    (call.audioUrl.startsWith('blob:') || call.audioUrl.startsWith('http') || call.audioUrl.startsWith('/'));
+    (call.audioUrl.startsWith('http') || call.audioUrl.startsWith('blob:') || call.audioUrl.startsWith('/'));
 
   // Format display date
   const displayDate = call.date ? new Date(call.date).toLocaleDateString('en-US', { 
@@ -522,17 +281,25 @@ const CallCard = ({ call, isPlaying, onPlay, onPause }) => {
           )}
         </div>
         
+        {/* Cloud Badge for Supabase Audio */}
+        {call.audioUrl && call.audioUrl.includes('supabase.co') && (
+          <div className="mb-3 flex items-center gap-1 text-xs text-rose-400/60">
+            <Cloud className="w-3 h-3" />
+            <span>Cloud Audio</span>
+          </div>
+        )}
+        
         {/* No Audio File Message */}
         {!isValidAudioUrl && (
           <div className="mb-3 text-amber-400 text-xs bg-amber-500/10 p-2 rounded-lg">
-            📞 Call recording file missing. Please add audio file using the + button below.
+            📞 Call recording file missing.
           </div>
         )}
         
         {/* Error Message */}
         {audioError && isValidAudioUrl && (
           <div className="mb-3 text-red-400 text-xs bg-red-500/10 p-2 rounded-lg">
-            ⚠️ Unable to play audio. The file might be corrupted or in unsupported format.
+            ⚠️ Unable to play audio. Check your internet connection.
           </div>
         )}
         
@@ -619,6 +386,7 @@ const CallCard = ({ call, isPlaying, onPlay, onPause }) => {
             ref={audioRef} 
             src={call.audioUrl}
             preload="metadata"
+            crossOrigin="anonymous"
           />
         )}
       </div>
@@ -632,13 +400,119 @@ export default function CallsPage() {
   const [playingId, setPlayingId] = useState(null);
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
-  const [showAddModal, setShowAddModal] = useState(false);
+
+  // Sample calls data with Supabase URLs
+  const sampleCalls = [
+    {
+      id: 1,
+      name: "Bala Bharathi",
+      date: "2026-06-12",
+      time: "06:36 PM",
+      audioUrl: "https://lghzrewutybboombrafj.supabase.co/storage/v1/object/public/audio/1.mp3",
+    
+      durationFormatted: "17:38 ",
+      isFavorite: true,
+      createdAt: new Date().toISOString()
+    },
+    {
+      id: 2,
+      name: "Bala Bharathi",
+      date: "2026-06-11",
+      time: "08:15 PM",
+      audioUrl: "https://lghzrewutybboombrafj.supabase.co/storage/v1/object/public/audio/2.mp3",
+      
+      durationFormatted: "16:47",
+      isFavorite: false,
+      createdAt: new Date().toISOString()
+    },
+    {
+      id: 3,
+      name: "Bala Bharathi",
+      date: "2026-06-10",
+      time: "07:30 PM",
+      audioUrl: "https://lghzrewutybboombrafj.supabase.co/storage/v1/object/public/audio/3.mp3",
   
-  // Load calls from localStorage
+      durationFormatted: "11:41",
+      isFavorite: true,
+      createdAt: new Date().toISOString()
+    },{
+      id: 4,
+      name: "Bala Bharathi",
+      date: "2026-06-11",
+      time: "08:15 PM",
+      audioUrl: "https://lghzrewutybboombrafj.supabase.co/storage/v1/object/public/audio/4.mp3",
+      
+      durationFormatted: "16:47",
+      isFavorite: false,
+      createdAt: new Date().toISOString()
+    },{
+      id: 5,
+      name: "Bala Bharathi",
+      date: "2026-06-11",
+      time: "08:15 PM",
+      audioUrl: "https://lghzrewutybboombrafj.supabase.co/storage/v1/object/public/audio/5.mp3",
+      
+      durationFormatted: "16:47",
+      isFavorite: false,
+      createdAt: new Date().toISOString()
+    },{
+      id: 6,
+      name: "Bala Bharathi",
+      date: "2026-06-11",
+      time: "08:15 PM",
+      audioUrl: "https://lghzrewutybboombrafj.supabase.co/storage/v1/object/public/audio/6.mp3",
+      
+      durationFormatted: "16:47",
+      isFavorite: false,
+      createdAt: new Date().toISOString()
+    },{
+      id: 7,
+      name: "Bala Bharathi",
+      date: "2026-06-11",
+      time: "08:15 PM",
+      audioUrl: "https://lghzrewutybboombrafj.supabase.co/storage/v1/object/public/audio/7.mp3",
+      
+      durationFormatted: "16:47",
+      isFavorite: false,
+      createdAt: new Date().toISOString()
+    },{
+      id: 8,
+      name: "Bala Bharathi",
+      date: "2026-06-11",
+      time: "08:15 PM",
+      audioUrl: "https://lghzrewutybboombrafj.supabase.co/storage/v1/object/public/audio/8.mp3",
+      
+      durationFormatted: "16:47",
+      isFavorite: false,
+      createdAt: new Date().toISOString()
+    },{
+      id: 9,
+      name: "Bala Bharathi",
+      date: "2026-06-11",
+      time: "08:15 PM",
+      audioUrl: "https://lghzrewutybboombrafj.supabase.co/storage/v1/object/public/audio/9.mp3",
+      
+      durationFormatted: "16:47",
+      isFavorite: false,
+      createdAt: new Date().toISOString()
+    },{
+      id: 10,
+      name: "Bala Bharathi",
+      date: "2026-06-11",
+      time: "08:15 PM",
+      audioUrl: "https://lghzrewutybboombrafj.supabase.co/storage/v1/object/public/audio/10.mp3",
+      
+      durationFormatted: "16:47",
+      isFavorite: false,
+      createdAt: new Date().toISOString()
+    },
+  ];
+
+  // Load calls from localStorage or use sample data
   useEffect(() => {
     loadCalls();
     
-    // Listen for storage changes from admin panel or other tabs
+    // Listen for storage changes
     const handleStorageChange = (e) => {
       if (e.key === 'admin_calls') {
         loadCalls();
@@ -654,27 +528,26 @@ export default function CallsPage() {
     const savedCalls = localStorage.getItem('admin_calls');
     console.log("Loading calls from localStorage:", savedCalls);
     
-    if (savedCalls) {
+    if (savedCalls && JSON.parse(savedCalls).length > 0) {
       try {
         let callsData = JSON.parse(savedCalls);
-        // Filter out invalid entries and sort by date (newest first)
         callsData = callsData.filter(call => call && call.id);
         const sorted = callsData.sort((a, b) => new Date(b.date) - new Date(a.date));
         console.log("Loaded calls:", sorted);
         setCalls(sorted);
       } catch (error) {
         console.error("Error parsing calls:", error);
-        setCalls([]);
+        // Use sample data if error
+        setCalls(sampleCalls);
+        // Save sample data to localStorage
+        localStorage.setItem('admin_calls', JSON.stringify(sampleCalls));
       }
     } else {
-      console.log("No calls found in localStorage");
-      setCalls([]);
+      console.log("No calls found, using sample data");
+      setCalls(sampleCalls);
+      // Save sample data to localStorage
+      localStorage.setItem('admin_calls', JSON.stringify(sampleCalls));
     }
-  };
-  
-  const handleAddCall = (newCall) => {
-    loadCalls(); // Reload the calls list
-    setRefreshKey(prev => prev + 1);
   };
   
   const filteredCalls = showFavoritesOnly 
@@ -682,10 +555,8 @@ export default function CallsPage() {
     : calls;
   
   const handlePlay = (id) => {
-    // Stop any currently playing audio
     if (playingId && playingId !== id) {
       setPlayingId(null);
-      // Small delay to allow cleanup
       setTimeout(() => setPlayingId(id), 100);
     } else {
       setPlayingId(id);
@@ -699,69 +570,6 @@ export default function CallsPage() {
   const totalCalls = calls.length;
   const favoriteCalls = calls.filter(c => c.isFavorite).length;
   const totalDuration = calls.reduce((sum, call) => sum + (call.duration || 0), 0);
-  
-  if (calls.length === 0) {
-    return (
-      <div className="min-h-screen bg-black">
-        <div className="fixed inset-0 bg-gradient-to-br from-rose-950/20 via-black to-black pointer-events-none" />
-        
-        <div className="relative z-10 min-h-screen flex flex-col items-center justify-center p-4">
-          <button
-            onClick={() => navigate('/')}
-            className="fixed top-4 left-4 z-20 bg-black/50 backdrop-blur-sm p-2 rounded-full hover:bg-black/70 transition"
-          >
-            <ArrowLeft className="w-6 h-6 text-rose-400" />
-          </button>
-          
-          <button
-            onClick={() => setShowAddModal(true)}
-            className="fixed bottom-6 right-6 z-20 bg-gradient-to-r from-rose-500 to-rose-600 p-4 rounded-full shadow-lg shadow-rose-500/30 hover:shadow-xl hover:shadow-rose-500/40 transition-all group"
-          >
-            <Plus className="w-6 h-6 text-white group-hover:scale-110 transition" />
-          </button>
-          
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="text-center"
-          >
-            <div className="relative">
-              <div className="w-32 h-32 mx-auto mb-6 bg-gradient-to-br from-rose-500/20 to-amber-500/20 rounded-full flex items-center justify-center">
-                <Phone className="w-16 h-16 text-rose-400 opacity-50" />
-              </div>
-              <motion.div
-                animate={{ 
-                  scale: [1, 1.1, 1],
-                  opacity: [0.5, 1, 0.5]
-                }}
-                transition={{ duration: 2, repeat: Infinity }}
-                className="absolute inset-0 bg-rose-500/10 rounded-full blur-xl"
-              />
-            </div>
-            <h2 className="text-2xl font-bold text-white mb-2">No Calls Yet</h2>
-            <p className="text-gray-400 mb-4">Your special conversations will appear here</p>
-            <button
-              onClick={() => setShowAddModal(true)}
-              className="bg-gradient-to-r from-rose-500 to-rose-600 text-white px-6 py-3 rounded-lg font-semibold hover:shadow-lg hover:shadow-rose-500/30 transition flex items-center gap-2 mx-auto"
-            >
-              <Plus className="w-5 h-5" />
-              Add Your First Call Recording
-            </button>
-          </motion.div>
-        </div>
-        
-        <AnimatePresence>
-          {showAddModal && (
-            <AddCallModal
-              isOpen={showAddModal}
-              onClose={() => setShowAddModal(false)}
-              onAdd={handleAddCall}
-            />
-          )}
-        </AnimatePresence>
-      </div>
-    );
-  }
   
   return (
     <div className="min-h-screen bg-black">
@@ -811,7 +619,7 @@ export default function CallsPage() {
         <div className="container mx-auto px-4 py-6">
           {/* Favorite Filter Toggle */}
           {calls.length > 0 && (
-            <div className="mb-6 flex justify-between items-center">
+            <div className="mb-6 flex justify-end">
               <button
                 onClick={() => setShowFavoritesOnly(!showFavoritesOnly)}
                 className={`flex items-center gap-2 px-4 py-2 rounded-xl transition-all duration-300 ${
@@ -822,15 +630,6 @@ export default function CallsPage() {
               >
                 <Heart className={`w-4 h-4 ${showFavoritesOnly ? 'fill-white' : ''}`} />
                 {showFavoritesOnly ? 'Showing Favorites' : 'Show Favorites Only'}
-              </button>
-              
-              {/* Add Call Button */}
-              <button
-                onClick={() => setShowAddModal(true)}
-                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-rose-500 to-rose-600 text-white hover:shadow-lg hover:shadow-rose-500/30 transition"
-              >
-                <Plus className="w-4 h-4" />
-                Add Call
               </button>
             </div>
           )}
@@ -862,7 +661,7 @@ export default function CallsPage() {
               <p className="text-gray-400">
                 {showFavoritesOnly 
                   ? 'Mark some calls as favorites to see them here ❤️' 
-                  : 'Click the + button to add your first call recording 📞'}
+                  : 'Your special conversations will appear here 📞'}
               </p>
             </motion.div>
           ) : (
@@ -882,24 +681,6 @@ export default function CallsPage() {
           )}
         </div>
       </div>
-      
-      {/* Floating Add Button (when list is not empty) */}
-      <button
-        onClick={() => setShowAddModal(true)}
-        className="fixed bottom-6 right-6 z-20 bg-gradient-to-r from-rose-500 to-rose-600 p-4 rounded-full shadow-lg shadow-rose-500/30 hover:shadow-xl hover:shadow-rose-500/40 transition-all group"
-      >
-        <Plus className="w-6 h-6 text-white group-hover:scale-110 transition" />
-      </button>
-      
-      <AnimatePresence>
-        {showAddModal && (
-          <AddCallModal
-            isOpen={showAddModal}
-            onClose={() => setShowAddModal(false)}
-            onAdd={handleAddCall}
-          />
-        )}
-      </AnimatePresence>
     </div>
   );
 }
