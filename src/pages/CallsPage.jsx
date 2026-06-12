@@ -476,22 +476,25 @@ const CallCard = ({ call, index, isPlaying, onPlay, onPause, onEdit, onDelete })
       <div className="absolute inset-0 bg-gradient-to-r from-rose-500/5 to-transparent rounded-2xl opacity-0 group-hover:opacity-100 transition duration-500" />
       
       <div className="relative z-10">
-        {/* Title Section - Made very prominent */}
+        {/* Title Section - Prominent Display */}
         <div className="mb-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-full bg-gradient-to-r from-rose-500 to-rose-600 flex items-center justify-center shadow-lg shadow-rose-500/30">
-                <Phone className="w-5 h-5 text-white" />
+              <div className="w-14 h-14 rounded-full bg-gradient-to-r from-rose-500 to-rose-600 flex items-center justify-center shadow-lg shadow-rose-500/30">
+                <Phone className="w-6 h-6 text-white" />
               </div>
               <div>
-                <p className="text-white font-bold text-3xl tracking-wide">{call.title}</p>
+                <p className="text-white font-bold text-3xl md:text-4xl tracking-wide">
+                  {call.title}
+                </p>
                 {isPlaying && (
                   <motion.div 
-                    className="mt-1 text-green-400 text-xs"
+                    className="mt-1 text-green-400 text-xs flex items-center gap-1"
                     animate={{ opacity: [1, 0.5, 1] }}
                     transition={{ duration: 1, repeat: Infinity }}
                   >
-                    🔴 Playing now...
+                    <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></span>
+                    Playing now...
                   </motion.div>
                 )}
               </div>
@@ -516,20 +519,20 @@ const CallCard = ({ call, index, isPlaying, onPlay, onPause, onEdit, onDelete })
           </div>
         </div>
         
-        {/* Date, Time, Duration */}
-        <div className="bg-black/30 rounded-xl p-3 mb-4">
+        {/* Date, Time, Duration Info Box */}
+        <div className="bg-black/40 backdrop-blur-sm rounded-xl p-3 mb-4 border border-rose-500/20">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="flex items-center gap-2 text-rose-400">
-              <Calendar className="w-4 h-4" />
-              <span className="text-white">{displayDate}</span>
+            <div className="flex items-center gap-2">
+              <Calendar className="w-4 h-4 text-rose-400" />
+              <span className="text-gray-200 text-sm">{displayDate}</span>
             </div>
-            <div className="flex items-center gap-2 text-rose-400">
-              <Clock className="w-4 h-4" />
-              <span className="text-white">{call.time}</span>
+            <div className="flex items-center gap-2">
+              <Clock className="w-4 h-4 text-rose-400" />
+              <span className="text-gray-200 text-sm">{call.time}</span>
             </div>
-            <div className="flex items-center gap-2 text-rose-400">
-              <Timer className="w-4 h-4" />
-              <span className="text-white font-mono">{call.durationFormatted || formatDuration(call.duration)}</span>
+            <div className="flex items-center gap-2">
+              <Timer className="w-4 h-4 text-rose-400" />
+              <span className="text-gray-200 text-sm font-mono">{call.durationFormatted || formatDuration(call.duration)}</span>
             </div>
           </div>
         </div>
@@ -732,6 +735,7 @@ export default function CallsPage() {
   
   const allAudioCalls = generateAudioCalls();
   
+  // Load calls - with automatic reset if old data detected
   useEffect(() => {
     loadCalls();
     
@@ -749,9 +753,19 @@ export default function CallsPage() {
   const loadCalls = () => {
     const savedCalls = localStorage.getItem('admin_calls');
     
-    if (savedCalls && JSON.parse(savedCalls).length > 0) {
+    if (savedCalls) {
       try {
         let callsData = JSON.parse(savedCalls);
+        
+        // Check if it's old data (doesn't have Lucy titles)
+        if (callsData.length > 0 && callsData[0] && !callsData[0].title?.includes('Lucy')) {
+          console.log("Old data detected! Resetting to fresh data...");
+          // Reset to fresh data
+          setCalls(allAudioCalls);
+          localStorage.setItem('admin_calls', JSON.stringify(allAudioCalls));
+          return;
+        }
+        
         callsData = callsData.filter(call => call && call.id);
         const sorted = callsData.sort((a, b) => parseInt(a.id) - parseInt(b.id));
         setCalls(sorted);
@@ -761,6 +775,7 @@ export default function CallsPage() {
         localStorage.setItem('admin_calls', JSON.stringify(allAudioCalls));
       }
     } else {
+      // First time - load fresh data
       setCalls(allAudioCalls);
       localStorage.setItem('admin_calls', JSON.stringify(allAudioCalls));
     }
