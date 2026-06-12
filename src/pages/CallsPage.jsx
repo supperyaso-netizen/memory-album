@@ -610,12 +610,12 @@ export default function CallsPage() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   
-  // Complete data from 1 to 82
+  // Complete data from 1 to 82 - CHANGED Lucy(1) duration to 17:38
   const generateAudioCalls = () => {
     const baseUrl = "https://lghzrewutybboombrafj.supabase.co/storage/v1/object/public/audio";
     
     const callsData = [
-      { number: 1, title: "Lucy(1)", date: "2026-01-05", time: "4:10 pm", durationStr: "17:38" },
+      { number: 1, title: "Lucy(1)", date: "2026-01-05", time: "4:10 pm", durationStr: "17:38" }, // CHANGED from 00:15 to 17:38
       { number: 2, title: "Lucy(2)", date: "2026-01-10", time: "4:13 pm", durationStr: "16:47" },
       { number: 3, title: "Lucy(3)", date: "2026-02-20", time: "7:20 am", durationStr: "11:41" },
       { number: 4, title: "Lucy(4)", date: "2026-02-24", time: "7:21 am", durationStr: "12:23" },
@@ -708,7 +708,7 @@ export default function CallsPage() {
         time: call.time,
         audioUrl: `${baseUrl}/${call.number}.mp3`,
         duration: durationSeconds,
-        durationFormatted: formatDuration(durationSeconds),
+        durationFormatted: call.durationStr,
         createdAt: new Date(call.date).toISOString()
       };
     });
@@ -717,49 +717,16 @@ export default function CallsPage() {
   const allAudioCalls = generateAudioCalls();
   
   useEffect(() => {
-    loadCalls();
-    
-    const handleStorageChange = (e) => {
-      if (e.key === 'admin_calls') {
-        loadCalls();
-        setRefreshKey(prev => prev + 1);
-      }
-    };
-    
-    window.addEventListener('storage', handleStorageChange);
-    return () => window.removeEventListener('storage', handleStorageChange);
+    // Force clear old data and load fresh
+    localStorage.removeItem('admin_calls');
+    setCalls(allAudioCalls);
+    localStorage.setItem('admin_calls', JSON.stringify(allAudioCalls));
   }, []);
   
-  const loadCalls = () => {
-    const savedCalls = localStorage.getItem('admin_calls');
-    
-    if (savedCalls) {
-      try {
-        let callsData = JSON.parse(savedCalls);
-        
-        if (callsData.length > 0 && callsData[0] && !callsData[0].title?.includes('Lucy')) {
-          console.log("Old data detected! Resetting...");
-          setCalls(allAudioCalls);
-          localStorage.setItem('admin_calls', JSON.stringify(allAudioCalls));
-          return;
-        }
-        
-        callsData = callsData.filter(call => call && call.id);
-        const sorted = callsData.sort((a, b) => parseInt(a.id) - parseInt(b.id));
-        setCalls(sorted);
-      } catch (error) {
-        console.error("Error parsing calls:", error);
-        setCalls(allAudioCalls);
-        localStorage.setItem('admin_calls', JSON.stringify(allAudioCalls));
-      }
-    } else {
-      setCalls(allAudioCalls);
-      localStorage.setItem('admin_calls', JSON.stringify(allAudioCalls));
-    }
-  };
-  
   const handleAddCall = (newCall) => {
-    loadCalls();
+    const updatedCalls = [...calls, newCall].sort((a, b) => a.id - b.id);
+    setCalls(updatedCalls);
+    localStorage.setItem('admin_calls', JSON.stringify(updatedCalls));
     setRefreshKey(prev => prev + 1);
   };
   
