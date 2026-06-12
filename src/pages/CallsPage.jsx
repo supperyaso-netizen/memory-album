@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   ArrowLeft, Heart, Play, Pause, Phone, Clock, 
   Star, Volume2, VolumeX, Music, Zap, User, Calendar,
-  Cloud
+  Cloud, AlertCircle
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
@@ -122,6 +122,7 @@ const CallCard = ({ call, isPlaying, onPlay, onPause }) => {
   const [volume, setVolume] = useState(1);
   const [isMuted, setIsMuted] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState('');
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -145,6 +146,7 @@ const CallCard = ({ call, isPlaying, onPlay, onPause }) => {
       console.error("Audio error:", e);
       setAudioError(true);
       setIsLoading(false);
+      setErrorMessage('Audio file not found or cannot be played');
     };
 
     audio.addEventListener('timeupdate', updateTime);
@@ -170,6 +172,7 @@ const CallCard = ({ call, isPlaying, onPlay, onPause }) => {
       audio.play().catch(error => {
         console.error("Audio play error:", error);
         setAudioError(true);
+        setErrorMessage('Failed to play audio. Please check your connection.');
         onPause();
       });
     } else if (!isPlaying) {
@@ -179,6 +182,7 @@ const CallCard = ({ call, isPlaying, onPlay, onPause }) => {
 
   const handlePlay = () => {
     setAudioError(false);
+    setErrorMessage('');
     onPlay();
   };
 
@@ -210,11 +214,9 @@ const CallCard = ({ call, isPlaying, onPlay, onPause }) => {
     }
   };
 
-  // Validate audio URL - Support Supabase URLs
   const isValidAudioUrl = call.audioUrl && call.audioUrl !== '' && 
     (call.audioUrl.startsWith('http') || call.audioUrl.startsWith('blob:') || call.audioUrl.startsWith('/'));
 
-  // Format display date
   const displayDate = call.date ? new Date(call.date).toLocaleDateString('en-US', { 
     month: 'long', 
     day: 'numeric',
@@ -281,25 +283,18 @@ const CallCard = ({ call, isPlaying, onPlay, onPause }) => {
           )}
         </div>
         
-        {/* Cloud Badge for Supabase Audio */}
-        {call.audioUrl && call.audioUrl.includes('supabase.co') && (
-          <div className="mb-3 flex items-center gap-1 text-xs text-rose-400/60">
-            <Cloud className="w-3 h-3" />
-            <span>Cloud Audio</span>
-          </div>
-        )}
-        
-        {/* No Audio File Message */}
-        {!isValidAudioUrl && (
-          <div className="mb-3 text-amber-400 text-xs bg-amber-500/10 p-2 rounded-lg">
-            📞 Call recording file missing.
-          </div>
-        )}
-        
         {/* Error Message */}
-        {audioError && isValidAudioUrl && (
-          <div className="mb-3 text-red-400 text-xs bg-red-500/10 p-2 rounded-lg">
-            ⚠️ Unable to play audio. Check your internet connection.
+        {errorMessage && (
+          <div className="mb-3 p-2 bg-red-500/20 border border-red-500/30 rounded-lg flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 text-red-400" />
+            <p className="text-red-400 text-xs">{errorMessage}</p>
+          </div>
+        )}
+        
+        {/* Audio URL Info for debugging */}
+        {call.audioUrl && !audioError && (
+          <div className="mb-3 text-xs text-gray-500 truncate">
+            📍 Audio URL: {call.audioUrl}
           </div>
         )}
         
@@ -309,6 +304,7 @@ const CallCard = ({ call, isPlaying, onPlay, onPause }) => {
             <div className="w-2 h-2 bg-rose-400 rounded-full animate-bounce" style={{ animationDelay: '0s' }} />
             <div className="w-2 h-2 bg-rose-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }} />
             <div className="w-2 h-2 bg-rose-400 rounded-full animate-bounce" style={{ animationDelay: '0.4s' }} />
+            <span className="text-gray-400 text-xs ml-2">Loading audio...</span>
           </div>
         )}
         
@@ -326,7 +322,7 @@ const CallCard = ({ call, isPlaying, onPlay, onPause }) => {
         {/* Controls */}
         <div className="flex items-center justify-between gap-3">
           <div className="flex-1">
-            <AudioWaveform isPlaying={isPlaying && !isLoading && isValidAudioUrl} />
+            <AudioWaveform isPlaying={isPlaying && !isLoading && isValidAudioUrl && !audioError} />
           </div>
           
           {/* Play/Pause Button */}
@@ -400,119 +396,48 @@ export default function CallsPage() {
   const [playingId, setPlayingId] = useState(null);
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
 
-  // Sample calls data with Supabase URLs
+  // Test URLs - Replace with your actual Supabase URLs after uploading
   const sampleCalls = [
     {
       id: 1,
-      name: "Bala Bharathi",
+      name: "Bala Bharathi - Love Conversation",
       date: "2026-06-12",
       time: "06:36 PM",
       audioUrl: "https://lghzrewutybboombrafj.supabase.co/storage/v1/object/public/audio/1.mp3",
-    
-      durationFormatted: "17:38 ",
+      duration: 191,
+      durationFormatted: "3:11",
       isFavorite: true,
       createdAt: new Date().toISOString()
     },
     {
       id: 2,
-      name: "Bala Bharathi",
+      name: "Bala Bharathi - Sweet Talk",
       date: "2026-06-11",
       time: "08:15 PM",
       audioUrl: "https://lghzrewutybboombrafj.supabase.co/storage/v1/object/public/audio/2.mp3",
-      
-      durationFormatted: "16:47",
+      duration: 245,
+      durationFormatted: "4:05",
       isFavorite: false,
       createdAt: new Date().toISOString()
     },
     {
       id: 3,
-      name: "Bala Bharathi",
+      name: "Bala Bharathi - Good Night Call",
       date: "2026-06-10",
-      time: "07:30 PM",
+      time: "10:30 PM",
       audioUrl: "https://lghzrewutybboombrafj.supabase.co/storage/v1/object/public/audio/3.mp3",
-  
-      durationFormatted: "11:41",
+      duration: 180,
+      durationFormatted: "3:00",
       isFavorite: true,
       createdAt: new Date().toISOString()
-    },{
-      id: 4,
-      name: "Bala Bharathi",
-      date: "2026-06-11",
-      time: "08:15 PM",
-      audioUrl: "https://lghzrewutybboombrafj.supabase.co/storage/v1/object/public/audio/4.mp3",
-      
-      durationFormatted: "16:47",
-      isFavorite: false,
-      createdAt: new Date().toISOString()
-    },{
-      id: 5,
-      name: "Bala Bharathi",
-      date: "2026-06-11",
-      time: "08:15 PM",
-      audioUrl: "https://lghzrewutybboombrafj.supabase.co/storage/v1/object/public/audio/5.mp3",
-      
-      durationFormatted: "16:47",
-      isFavorite: false,
-      createdAt: new Date().toISOString()
-    },{
-      id: 6,
-      name: "Bala Bharathi",
-      date: "2026-06-11",
-      time: "08:15 PM",
-      audioUrl: "https://lghzrewutybboombrafj.supabase.co/storage/v1/object/public/audio/6.mp3",
-      
-      durationFormatted: "16:47",
-      isFavorite: false,
-      createdAt: new Date().toISOString()
-    },{
-      id: 7,
-      name: "Bala Bharathi",
-      date: "2026-06-11",
-      time: "08:15 PM",
-      audioUrl: "https://lghzrewutybboombrafj.supabase.co/storage/v1/object/public/audio/7.mp3",
-      
-      durationFormatted: "16:47",
-      isFavorite: false,
-      createdAt: new Date().toISOString()
-    },{
-      id: 8,
-      name: "Bala Bharathi",
-      date: "2026-06-11",
-      time: "08:15 PM",
-      audioUrl: "https://lghzrewutybboombrafj.supabase.co/storage/v1/object/public/audio/8.mp3",
-      
-      durationFormatted: "16:47",
-      isFavorite: false,
-      createdAt: new Date().toISOString()
-    },{
-      id: 9,
-      name: "Bala Bharathi",
-      date: "2026-06-11",
-      time: "08:15 PM",
-      audioUrl: "https://lghzrewutybboombrafj.supabase.co/storage/v1/object/public/audio/9.mp3",
-      
-      durationFormatted: "16:47",
-      isFavorite: false,
-      createdAt: new Date().toISOString()
-    },{
-      id: 10,
-      name: "Bala Bharathi",
-      date: "2026-06-11",
-      time: "08:15 PM",
-      audioUrl: "https://lghzrewutybboombrafj.supabase.co/storage/v1/object/public/audio/10.mp3",
-      
-      durationFormatted: "16:47",
-      isFavorite: false,
-      createdAt: new Date().toISOString()
-    },
+    }
   ];
 
-  // Load calls from localStorage or use sample data
   useEffect(() => {
     loadCalls();
     
-    // Listen for storage changes
     const handleStorageChange = (e) => {
       if (e.key === 'admin_calls') {
         loadCalls();
@@ -525,29 +450,25 @@ export default function CallsPage() {
   }, []);
   
   const loadCalls = () => {
+    setIsLoading(true);
     const savedCalls = localStorage.getItem('admin_calls');
-    console.log("Loading calls from localStorage:", savedCalls);
     
     if (savedCalls && JSON.parse(savedCalls).length > 0) {
       try {
         let callsData = JSON.parse(savedCalls);
         callsData = callsData.filter(call => call && call.id);
         const sorted = callsData.sort((a, b) => new Date(b.date) - new Date(a.date));
-        console.log("Loaded calls:", sorted);
         setCalls(sorted);
       } catch (error) {
         console.error("Error parsing calls:", error);
-        // Use sample data if error
         setCalls(sampleCalls);
-        // Save sample data to localStorage
         localStorage.setItem('admin_calls', JSON.stringify(sampleCalls));
       }
     } else {
-      console.log("No calls found, using sample data");
       setCalls(sampleCalls);
-      // Save sample data to localStorage
       localStorage.setItem('admin_calls', JSON.stringify(sampleCalls));
     }
+    setIsLoading(false);
   };
   
   const filteredCalls = showFavoritesOnly 
@@ -570,6 +491,17 @@ export default function CallsPage() {
   const totalCalls = calls.length;
   const favoriteCalls = calls.filter(c => c.isFavorite).length;
   const totalDuration = calls.reduce((sum, call) => sum + (call.duration || 0), 0);
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-black flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-rose-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-400">Loading calls...</p>
+        </div>
+      </div>
+    );
+  }
   
   return (
     <div className="min-h-screen bg-black">
