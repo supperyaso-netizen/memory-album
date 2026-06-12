@@ -286,7 +286,7 @@ const secretVideos = [
     thumbnail: "/videos/pookie.jpg",
     duration: "58:23",
     date: "06 April 2026",
-    isYouTube: true
+    
   },
   {
     id: 2,
