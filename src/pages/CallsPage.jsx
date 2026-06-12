@@ -8,10 +8,32 @@ import {
 import { useNavigate } from 'react-router-dom';
 
 const formatDuration = (seconds) => {
-  if (!seconds || isNaN(seconds)) return '0:00';
+  if (!seconds || isNaN(seconds) || seconds === 0) return '0:00';
   const mins = Math.floor(seconds / 60);
   const secs = Math.floor(seconds % 60);
   return `${mins}:${secs.toString().padStart(2, '0')}`;
+};
+
+// Parse duration string like "01:17:07" or "20:58" to seconds
+const parseDurationString = (durationStr) => {
+  if (!durationStr) return 0;
+  
+  // Handle "00:15 / 17:38" format
+  if (durationStr.includes('/')) {
+    const parts = durationStr.split('/');
+    durationStr = parts[1]?.trim() || parts[0]?.trim();
+  }
+  
+  const parts = durationStr.split(':');
+  if (parts.length === 3) {
+    // HH:MM:SS
+    return parseInt(parts[0]) * 3600 + parseInt(parts[1]) * 60 + parseInt(parts[2]);
+  } else if (parts.length === 2) {
+    // MM:SS
+    return parseInt(parts[0]) * 60 + parseInt(parts[1]);
+  } else {
+    return parseInt(parts[0]) || 0;
+  }
 };
 
 // Audio Seek Bar with full control
@@ -116,7 +138,7 @@ const AudioWaveform = ({ isPlaying }) => {
 
 // Add Call Modal Component
 const AddCallModal = ({ onClose, onAdd, isOpen }) => {
-  const [callNumber, setCallNumber] = useState('');
+  const [callTitle, setCallTitle] = useState('');
   const [callDate, setCallDate] = useState(new Date().toISOString().split('T')[0]);
   const [callTime, setCallTime] = useState(new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }));
   const [audioUrl, setAudioUrl] = useState('');
@@ -145,8 +167,8 @@ const AddCallModal = ({ onClose, onAdd, isOpen }) => {
   };
 
   const handleSubmit = () => {
-    if (!callNumber.trim()) {
-      setError('Please enter a call number');
+    if (!callTitle.trim()) {
+      setError('Please enter a call title');
       return;
     }
     if (!audioUrl.trim()) {
@@ -156,7 +178,7 @@ const AddCallModal = ({ onClose, onAdd, isOpen }) => {
 
     const newCall = {
       id: Date.now(),
-      title: callNumber.trim(),
+      title: callTitle.trim(),
       date: callDate,
       time: callTime,
       audioUrl: audioUrl.trim(),
@@ -215,12 +237,12 @@ const AddCallModal = ({ onClose, onAdd, isOpen }) => {
 
         <div className="space-y-4">
           <div>
-            <label className="block text-rose-400 text-sm mb-2">Call Number</label>
+            <label className="block text-rose-400 text-sm mb-2">Call Title</label>
             <input
               type="text"
-              value={callNumber}
-              onChange={(e) => setCallNumber(e.target.value)}
-              placeholder="e.g., 83, 84, 85"
+              value={callTitle}
+              onChange={(e) => setCallTitle(e.target.value)}
+              placeholder="e.g., Lucy(83)"
               className="w-full bg-black/50 border border-rose-500/30 rounded-lg px-4 py-2 text-white placeholder-gray-500 focus:outline-none focus:border-rose-500 transition"
             />
           </div>
@@ -270,7 +292,7 @@ const AddCallModal = ({ onClose, onAdd, isOpen }) => {
 
           <button
             onClick={handleSubmit}
-            disabled={!audioUrl.trim() || !callNumber.trim()}
+            disabled={!audioUrl.trim() || !callTitle.trim()}
             className="w-full bg-gradient-to-r from-rose-500 to-rose-700 text-white py-3 rounded-lg font-semibold hover:shadow-lg hover:shadow-rose-500/30 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
             <Plus className="w-5 h-5" />
@@ -289,7 +311,6 @@ const CallCard = ({ call, index, isPlaying, onPlay, onPause, onEdit, onDelete, o
   const [duration, setDuration] = useState(call.duration || 0);
   const [volume, setVolume] = useState(1);
   const [isMuted, setIsMuted] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editTitle, setEditTitle] = useState(call.title);
   const [editDate, setEditDate] = useState(call.date);
@@ -305,29 +326,18 @@ const CallCard = ({ call, index, isPlaying, onPlay, onPause, onEdit, onDelete, o
     const handleError = (e) => {
       console.error("Audio error:", e);
       setAudioError(true);
-      setIsLoading(false);
-    };
-    const handleLoadedMetadata = () => {
-      if (audio.duration && !isNaN(audio.duration)) {
-        setDuration(audio.duration);
-        if (call.duration === 0) {
-          onEdit(call.id, { ...call, duration: audio.duration, durationFormatted: formatDuration(audio.duration) });
-        }
-      }
     };
 
     audio.addEventListener('timeupdate', updateTime);
     audio.addEventListener('ended', handleEnded);
     audio.addEventListener('error', handleError);
-    audio.addEventListener('loadedmetadata', handleLoadedMetadata);
 
     return () => {
       audio.removeEventListener('timeupdate', updateTime);
       audio.removeEventListener('ended', handleEnded);
       audio.removeEventListener('error', handleError);
-      audio.removeEventListener('loadedmetadata', handleLoadedMetadata);
     };
-  }, [onPause, call.id, call.duration, onEdit, call]);
+  }, [onPause]);
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -408,13 +418,13 @@ const CallCard = ({ call, index, isPlaying, onPlay, onPause, onEdit, onDelete, o
       >
         <div className="space-y-3">
           <div>
-            <label className="text-rose-400 text-xs block mb-1">Call Number</label>
+            <label className="text-rose-400 text-xs block mb-1">Call Title</label>
             <input
               type="text"
               value={editTitle}
               onChange={(e) => setEditTitle(e.target.value)}
               className="w-full bg-black/50 border border-rose-500/30 rounded-lg p-2 text-white"
-              placeholder="Call number"
+              placeholder="Call title"
             />
           </div>
           <div className="grid grid-cols-2 gap-2">
@@ -446,7 +456,7 @@ const CallCard = ({ call, index, isPlaying, onPlay, onPause, onEdit, onDelete, o
               placeholder="Duration in seconds"
               className="w-full bg-black/50 border border-rose-500/30 rounded-lg p-2 text-white text-sm"
             />
-            <p className="text-gray-500 text-xs mt-1">Example: 125 = 2:05 minutes</p>
+            <p className="text-gray-500 text-xs mt-1">Current: {formatDuration(customDuration)}</p>
           </div>
           <div className="flex gap-2">
             <button onClick={saveEdit} className="flex-1 bg-green-500 text-white px-3 py-1 rounded-lg text-sm">
@@ -490,7 +500,10 @@ const CallCard = ({ call, index, isPlaying, onPlay, onPause, onEdit, onDelete, o
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <p className="text-white font-bold text-xl">#{call.title}</p>
+                <p className="text-white font-bold text-xl">{call.title}</p>
+                {call.isFavorite && (
+                  <Star className="w-4 h-4 text-amber-400 fill-amber-400" />
+                )}
               </div>
               <div className="flex flex-wrap items-center gap-3 mt-1">
                 <div className="flex items-center gap-1 text-rose-400 text-xs">
@@ -529,7 +542,7 @@ const CallCard = ({ call, index, isPlaying, onPlay, onPause, onEdit, onDelete, o
           <div className="mb-3 flex items-center gap-1 text-xs text-rose-400/60">
             <Cloud className="w-3 h-3" />
             <span>Cloud Audio</span>
-            <span className="text-gray-500 ml-1">(Call {call.title})</span>
+            <span className="text-gray-500 ml-1">({call.title})</span>
           </div>
         )}
         
@@ -539,16 +552,7 @@ const CallCard = ({ call, index, isPlaying, onPlay, onPause, onEdit, onDelete, o
           </div>
         )}
         
-        {isLoading && isValidAudioUrl && !audioError && (
-          <div className="mb-3 flex items-center justify-center gap-2">
-            <div className="w-2 h-2 bg-rose-400 rounded-full animate-bounce" style={{ animationDelay: '0s' }} />
-            <div className="w-2 h-2 bg-rose-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }} />
-            <div className="w-2 h-2 bg-rose-400 rounded-full animate-bounce" style={{ animationDelay: '0.4s' }} />
-            <span className="text-gray-400 text-xs ml-2">Loading audio...</span>
-          </div>
-        )}
-        
-        {isValidAudioUrl && !audioError && duration > 0 && (
+        {duration > 0 && (
           <div className="mb-4">
             <AudioSeekBar 
               currentTime={currentTime}
@@ -560,7 +564,7 @@ const CallCard = ({ call, index, isPlaying, onPlay, onPause, onEdit, onDelete, o
         
         <div className="flex items-center justify-between gap-3">
           <div className="flex-1">
-            <AudioWaveform isPlaying={isPlaying && !isLoading && isValidAudioUrl && !audioError} />
+            <AudioWaveform isPlaying={isPlaying && isValidAudioUrl && !audioError} />
           </div>
           
           <motion.button
@@ -627,109 +631,113 @@ export default function CallsPage() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   
-  // 📝 EDIT YOUR DATE AND TIME HERE FOR CALLS 1-82
-  // You can modify this array to set custom dates and times for each call
+  // Complete data from your table (82 calls with durations)
   const generateAudioCalls = () => {
     const baseUrl = "https://lghzrewutybboombrafj.supabase.co/storage/v1/object/public/audio";
     
-    // 📝 CUSTOMIZE DATE AND TIME FOR EACH CALL (1 to 82)
-    // Format: { number, date, time }
-    const callsDateTime = [
-      { number: 1, date: "2026-01-05", time: "04:10 PM" },
-      { number: 2, date: "2026-01-10", time: "04:13 PM" },
-      { number: 3, date: "2026-02-20", time: "07:20 AM" },
-      { number: 4, date: "2026-02-24", time: "07:21 AM" },
-      { number: 5, date: "2026-03-02", time: "07:21 AM" },
-      { number: 6, date: "2026-03-02", time: "07:27 AM" },
-      { number: 7, date: "2026-03-03", time: "05:09 PM" },
-      { number: 8, date: "2026-03-04", time: "07:04 AM" },
-      { number: 9, date: "2026-03-04", time: "03:16 PM" },
-      { number: 10, date: "2026-03-05", time: "07:03 AM" },
-      { number: 11, date: "2026-01-25", time: "09:15 AM" },
-      { number: 12, date: "2026-01-26", time: "04:20 PM" },
-      { number: 13, date: "2026-01-27", time: "11:00 PM" },
-      { number: 14, date: "2026-01-28", time: "07:30 AM" },
-      { number: 15, date: "2026-01-29", time: "02:45 PM" },
-      { number: 16, date: "2026-01-30", time: "08:00 PM" },
-      { number: 17, date: "2026-01-31", time: "12:15 PM" },
-      { number: 18, date: "2026-02-01", time: "05:30 PM" },
-      { number: 19, date: "2026-02-02", time: "10:45 PM" },
-      { number: 20, date: "2026-02-03", time: "03:00 AM" },
-      { number: 21, date: "2026-02-04", time: "11:30 AM" },
-      { number: 22, date: "2026-02-05", time: "04:15 PM" },
-      { number: 23, date: "2026-02-06", time: "09:45 PM" },
-      { number: 24, date: "2026-02-07", time: "06:00 AM" },
-      { number: 25, date: "2026-02-08", time: "01:30 PM" },
-      { number: 26, date: "2026-02-09", time: "07:15 PM" },
-      { number: 27, date: "2026-02-10", time: "12:00 AM" },
-      { number: 28, date: "2026-02-11", time: "08:30 AM" },
-      { number: 29, date: "2026-02-12", time: "03:45 PM" },
-      { number: 30, date: "2026-02-13", time: "10:00 PM" },
-      { number: 31, date: "2026-02-14", time: "05:30 AM" },
-      { number: 32, date: "2026-02-15", time: "11:15 AM" },
-      { number: 33, date: "2026-02-16", time: "08:45 PM" },
-      { number: 34, date: "2026-02-17", time: "02:00 PM" },
-      { number: 35, date: "2026-02-18", time: "09:30 PM" },
-      { number: 36, date: "2026-02-19", time: "04:45 AM" },
-      { number: 37, date: "2026-02-20", time: "12:30 PM" },
-      { number: 38, date: "2026-02-21", time: "07:00 PM" },
-      { number: 39, date: "2026-02-22", time: "01:15 AM" },
-      { number: 40, date: "2026-02-23", time: "06:30 AM" },
-      { number: 41, date: "2026-02-24", time: "10:45 PM" },
-      { number: 42, date: "2026-02-25", time: "03:30 PM" },
-      { number: 43, date: "2026-02-26", time: "09:00 AM" },
-      { number: 44, date: "2026-02-27", time: "05:15 PM" },
-      { number: 45, date: "2026-02-28", time: "12:00 PM" },
-      { number: 46, date: "2026-02-29", time: "08:30 PM" },
-      { number: 47, date: "2026-03-01", time: "02:45 AM" },
-      { number: 48, date: "2026-03-02", time: "11:15 PM" },
-      { number: 49, date: "2026-03-03", time: "07:30 AM" },
-      { number: 50, date: "2026-03-04", time: "04:00 PM" },
-      { number: 51, date: "2026-03-05", time: "10:15 AM" },
-      { number: 52, date: "2026-03-06", time: "01:45 PM" },
-      { number: 53, date: "2026-03-07", time: "09:30 PM" },
-      { number: 54, date: "2026-03-08", time: "06:00 AM" },
-      { number: 55, date: "2026-03-09", time: "03:15 PM" },
-      { number: 56, date: "2026-03-10", time: "11:45 PM" },
-      { number: 57, date: "2026-03-11", time: "08:00 AM" },
-      { number: 58, date: "2026-03-12", time: "05:30 PM" },
-      { number: 59, date: "2026-03-13", time: "12:15 AM" },
-      { number: 60, date: "2026-03-14", time: "07:45 PM" },
-      { number: 61, date: "2026-03-15", time: "02:30 PM" },
-      { number: 62, date: "2026-03-16", time: "10:00 PM" },
-      { number: 63, date: "2026-03-17", time: "06:15 AM" },
-      { number: 64, date: "2026-03-18", time: "11:30 AM" },
-      { number: 65, date: "2026-03-19", time: "04:45 PM" },
-      { number: 66, date: "2026-03-20", time: "09:00 PM" },
-      { number: 67, date: "2026-03-21", time: "01:15 AM" },
-      { number: 68, date: "2026-03-22", time: "07:30 PM" },
-      { number: 69, date: "2026-03-23", time: "03:45 AM" },
-      { number: 70, date: "2026-03-24", time: "12:00 PM" },
-      { number: 71, date: "2026-03-25", time: "08:15 PM" },
-      { number: 72, date: "2026-03-26", time: "05:30 AM" },
-      { number: 73, date: "2026-03-27", time: "10:45 PM" },
-      { number: 74, date: "2026-03-28", time: "02:00 PM" },
-      { number: 75, date: "2026-03-29", time: "09:30 AM" },
-      { number: 76, date: "2026-03-30", time: "06:45 PM" },
-      { number: 77, date: "2026-03-31", time: "11:15 PM" },
-      { number: 78, date: "2026-04-01", time: "04:30 AM" },
-      { number: 79, date: "2026-04-02", time: "01:00 PM" },
-      { number: 80, date: "2026-04-03", time: "07:15 PM" },
-      { number: 81, date: "2026-04-04", time: "12:30 AM" },
-      { number: 82, date: "2026-04-05", time: "08:45 PM" }
+    // All 82 calls with their data
+    const callsData = [
+      { number: 82, title: "Lucy(82)", date: "2026-05-09", time: "7:18 am", durationStr: "01:17:07" },
+      { number: 81, title: "Lucy(81)", date: "2026-05-08", time: "4:00 pm", durationStr: "20:58" },
+      { number: 80, title: "Lucy(80)", date: "2026-05-08", time: "7:11 am", durationStr: "51:05" },
+      { number: 79, title: "Lucy(79)", date: "2026-05-07", time: "7:46 am", durationStr: "15:24" },
+      { number: 78, title: "Lucy(78)", date: "2026-05-07", time: "7:09 am", durationStr: "32:28" },
+      { number: 77, title: "Lucy(77)", date: "2026-05-05", time: "7:23 am", durationStr: "23:00" },
+      { number: 76, title: "Lucy(76)", date: "2026-05-04", time: "9:08 pm", durationStr: "01:11:31" },
+      { number: 75, title: "Lucy(75)", date: "2026-05-04", time: "7:43 am", durationStr: "28:19" },
+      { number: 74, title: "Lucy(74)", date: "2026-05-04", time: "7:18 am", durationStr: "05:13" },
+      { number: 73, title: "Lucy(73)", date: "2026-05-03", time: "12:26 pm", durationStr: "28:15" },
+      { number: 72, title: "Lucy(72)", date: "2026-05-03", time: "8:19 am", durationStr: "01:01:50" },
+      { number: 71, title: "Lucy(71)", date: "2026-05-02", time: "8:20 pm", durationStr: "24:08" },
+      { number: 70, title: "Lucy(70)", date: "2026-05-02", time: "8:14 pm", durationStr: "04:41" },
+      { number: 69, title: "Lucy(69)", date: "2026-05-02", time: "8:28 am", durationStr: "17:22" },
+      { number: 68, title: "Lucy(68)", date: "2026-05-01", time: "9:00 pm", durationStr: "51:25" },
+      { number: 67, title: "Lucy(67)", date: "2026-05-01", time: "8:34 pm", durationStr: "25:22" },
+      { number: 66, title: "Lucy(66)", date: "2026-05-01", time: "3:02 pm", durationStr: "15:59" },
+      { number: 65, title: "Lucy(65)", date: "2026-04-28", time: "9:30 pm", durationStr: "18:05" },
+      { number: 64, title: "Lucy(64)", date: "2026-04-26", time: "9:23 pm", durationStr: "27:21" },
+      { number: 63, title: "Lucy(63)", date: "2026-04-25", time: "8:37 pm", durationStr: "01:10:18" },
+      { number: 62, title: "Lucy(62)", date: "2026-04-24", time: "9:38 pm", durationStr: "39:27" },
+      { number: 61, title: "Lucy(61)", date: "2026-04-24", time: "8:03 am", durationStr: "24:29" },
+      { number: 60, title: "Lucy(60)", date: "2026-04-23", time: "9:00 am", durationStr: "02:25" },
+      { number: 59, title: "Lucy(59)", date: "2026-04-23", time: "7:17 am", durationStr: "01:37:00" },
+      { number: 58, title: "Lucy(58)", date: "2026-04-22", time: "11:56 am", durationStr: "10:14" },
+      { number: 57, title: "Lucy(57)", date: "2026-04-20", time: "6:59 am", durationStr: "01:24:05" },
+      { number: 56, title: "Lucy(56)", date: "2026-04-18", time: "3:01 pm", durationStr: "27:26" },
+      { number: 55, title: "Lucy(55)", date: "2026-04-18", time: "10:27 am", durationStr: "07:13" },
+      { number: 54, title: "Lucy(54)", date: "2026-04-15", time: "6:59 am", durationStr: "01:26:17" },
+      { number: 53, title: "Lucy(53)", date: "2026-04-14", time: "8:45 am", durationStr: "00:33" },
+      { number: 52, title: "Lucy(52)", date: "2026-04-14", time: "8:32 am", durationStr: "01:02" },
+      { number: 51, title: "Lucy(51)", date: "2026-04-14", time: "7:06 am", durationStr: "13:22" },
+      { number: 50, title: "Lucy(50)", date: "2026-04-13", time: "12:21 pm", durationStr: "18:51" },
+      { number: 49, title: "Lucy(49)", date: "2026-04-13", time: "12:00 pm", durationStr: "11:59" },
+      { number: 48, title: "Lucy(48)", date: "2026-04-13", time: "11:33 am", durationStr: "13:29" },
+      { number: 47, title: "Lucy(47)", date: "2026-04-13", time: "10:52 am", durationStr: "36:41" },
+      { number: 46, title: "Lucy(46)", date: "2026-04-13", time: "10:01 am", durationStr: "07:18" },
+      { number: 45, title: "Lucy(45)", date: "2026-04-13", time: "9:50 am", durationStr: "09:18" },
+      { number: 44, title: "Lucy(44)", date: "2026-04-12", time: "3:09 pm", durationStr: "33:44" },
+      { number: 43, title: "Lucy(43)", date: "2026-04-11", time: "9:14 pm", durationStr: "01:05:53" },
+      { number: 42, title: "Lucy(42)", date: "2026-04-11", time: "8:21 pm", durationStr: "50:33" },
+      { number: 41, title: "Lucy(41)", date: "2026-04-11", time: "2:47 pm", durationStr: "06:42" },
+      { number: 40, title: "Lucy(40)", date: "2026-04-11", time: "6:57 am", durationStr: "14:49" },
+      { number: 39, title: "Lucy(39)", date: "2026-04-10", time: "7:08 am", durationStr: "01:49:35" },
+      { number: 38, title: "Lucy(38)", date: "2026-04-09", time: "7:11 am", durationStr: "24:53" },
+      { number: 37, title: "Lucy(37)", date: "2026-04-08", time: "7:10 am", durationStr: "08:52" },
+      { number: 36, title: "Lucy(36)", date: "2026-04-07", time: "7:21 am", durationStr: "16:37" },
+      { number: 35, title: "Lucy(35)", date: "2026-04-06", time: "7:04 am", durationStr: "37:05" },
+      { number: 34, title: "Lucy(34)", date: "2026-04-05", time: "1:09 pm", durationStr: "44:00" },
+      { number: 33, title: "Lucy(33)", date: "2026-04-04", time: "4:17 pm", durationStr: "25:38" },
+      { number: 32, title: "Lucy(32)", date: "2026-04-04", time: "2:35 pm", durationStr: "55:10" },
+      { number: 31, title: "Lucy(31)", date: "2026-04-04", time: "12:45 pm", durationStr: "03:26" },
+      { number: 30, title: "Lucy(30)", date: "2026-04-02", time: "8:39 am", durationStr: "24:33" },
+      { number: 29, title: "Lucy(29)", date: "2026-04-01", time: "8:52 am", durationStr: "00:31" },
+      { number: 28, title: "Lucy(28)", date: "2026-03-26", time: "8:57 am", durationStr: "10:43" },
+      { number: 27, title: "Lucy(27)", date: "2026-03-13", time: "4:21 pm", durationStr: "10:48" },
+      { number: 26, title: "Lucy(26)", date: "2026-03-13", time: "7:15 am", durationStr: "15:09" },
+      { number: 25, title: "Lucy(25)", date: "2026-03-12", time: "3:06 pm", durationStr: "20:51" },
+      { number: 24, title: "Lucy(24)", date: "2026-03-12", time: "7:46 am", durationStr: "16:31" },
+      { number: 23, title: "Lucy(23)", date: "2026-03-11", time: "4:41 pm", durationStr: "49:53" },
+      { number: 22, title: "Lucy(22)", date: "2026-03-11", time: "3:00 pm", durationStr: "24:03" },
+      { number: 21, title: "Lucy(21)", date: "2026-03-10", time: "4:32 pm", durationStr: "24:32" },
+      { number: 20, title: "Lucy(20)", date: "2026-03-10", time: "3:09 pm", durationStr: "14:57" },
+      { number: 19, title: "Lucy(19)", date: "2026-03-10", time: "7:35 am", durationStr: "08:57" },
+      { number: 18, title: "Lucy(18)", date: "2026-03-09", time: "3:18 pm", durationStr: "01:06" },
+      { number: 17, title: "Lucy(17)", date: "2026-03-09", time: "7:04 am", durationStr: "35:26" },
+      { number: 16, title: "Lucy(16)", date: "2026-03-07", time: "3:54 pm", durationStr: "17:20" },
+      { number: 15, title: "Lucy(15)", date: "2026-03-06", time: "3:15 pm", durationStr: "14:33" },
+      { number: 14, title: "Lucy(14)", date: "2026-03-06", time: "7:29 am", durationStr: "11:24" },
+      { number: 13, title: "Lucy(13)", date: "2026-03-06", time: "7:15 am", durationStr: "12:15" },
+      { number: 12, title: "Lucy(12)", date: "2026-03-05", time: "4:40 pm", durationStr: "55:21" },
+      { number: 11, title: "Lucy(11)", date: "2026-03-05", time: "7:03 am", durationStr: "35:08" },
+      { number: 10, title: "Lucy(10)", date: "2026-03-04", time: "3:16 pm", durationStr: "09:17" },
+      { number: 9, title: "Lucy(9)", date: "2026-03-04", time: "7:04 am", durationStr: "19:59" },
+      { number: 8, title: "Lucy(8)", date: "2026-03-03", time: "5:09 pm", durationStr: "20:05" },
+      { number: 7, title: "Lucy(7)", date: "2026-03-02", time: "7:27 am", durationStr: "07:04" },
+      { number: 6, title: "Lucy(6)", date: "2026-03-02", time: "7:21 am", durationStr: "04:32" },
+      { number: 5, title: "Lucy(5)", date: "2026-02-24", time: "7:21 am", durationStr: "12:23" },
+      { number: 4, title: "Lucy(4)", date: "2026-02-20", time: "7:20 am", durationStr: "11:41" },
+      { number: 3, title: "Lucy(3)", date: "2026-01-10", time: "4:13 pm", durationStr: "16:47" },
+      { number: 2, title: "Lucy(2)", date: "2026-01-05", time: "4:10 pm", durationStr: "17:38" },
+      { number: 1, title: "Lucy(1)", date: "2026-01-05", time: "4:10 pm", durationStr: "00:15" }
     ];
     
-    return callsDateTime.map(call => ({
-      id: call.number,
-      title: call.number.toString(),
-      date: call.date,
-      time: call.time,
-      audioUrl: `${baseUrl}/${call.number}.mp3`,
-      duration: 0,
-      durationFormatted: '0:00',
-      isFavorite: false,
-      createdAt: new Date(call.date).toISOString()
-    }));
+    // Sort by number (1 to 82)
+    const sortedCalls = [...callsData].sort((a, b) => a.number - b.number);
+    
+    return sortedCalls.map(call => {
+      const durationSeconds = parseDurationString(call.durationStr);
+      return {
+        id: call.number,
+        title: call.title,
+        date: call.date,
+        time: call.time,
+        audioUrl: `${baseUrl}/${call.number}.mp3`,
+        duration: durationSeconds,
+        durationFormatted: formatDuration(durationSeconds),
+        isFavorite: false,
+        createdAt: new Date(call.date).toISOString()
+      };
+    });
   };
   
   const allAudioCalls = generateAudioCalls();
@@ -756,7 +764,7 @@ export default function CallsPage() {
       try {
         let callsData = JSON.parse(savedCalls);
         callsData = callsData.filter(call => call && call.id);
-        const sorted = callsData.sort((a, b) => parseInt(a.title) - parseInt(b.title));
+        const sorted = callsData.sort((a, b) => parseInt(a.id) - parseInt(b.id));
         setCalls(sorted);
       } catch (error) {
         console.error("Error parsing calls:", error);
@@ -778,7 +786,6 @@ export default function CallsPage() {
     const updatedCalls = calls.map(call => call.id === id ? updatedCall : call);
     setCalls(updatedCalls);
     localStorage.setItem('admin_calls', JSON.stringify(updatedCalls));
-    loadCalls();
     setRefreshKey(prev => prev + 1);
   };
   
@@ -787,7 +794,6 @@ export default function CallsPage() {
       const updatedCalls = calls.filter(call => call.id !== id);
       setCalls(updatedCalls);
       localStorage.setItem('admin_calls', JSON.stringify(updatedCalls));
-      loadCalls();
       setRefreshKey(prev => prev + 1);
     }
   };
@@ -863,7 +869,7 @@ export default function CallsPage() {
                 </div>
                 <div className="bg-black/50 backdrop-blur-sm rounded-xl px-4 py-2 border border-rose-500/20">
                   <p className="text-rose-400 text-xs">Total Duration</p>
-                  <p className="text-white text-xl font-bold">{Math.floor(totalDuration / 60)}m</p>
+                  <p className="text-white text-xl font-bold">{Math.floor(totalDuration / 3600)}h {Math.floor((totalDuration % 3600) / 60)}m</p>
                 </div>
               </div>
             </div>
@@ -877,7 +883,7 @@ export default function CallsPage() {
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
               <input
                 type="text"
-                placeholder="Search by call number..."
+                placeholder="Search by call title..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full bg-black/50 border border-rose-500/30 rounded-lg pl-10 pr-4 py-2 text-white placeholder-gray-500 focus:outline-none focus:border-rose-500 transition"
