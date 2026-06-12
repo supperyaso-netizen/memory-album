@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   ArrowLeft, Heart, Play, Pause, Phone, Clock, 
-  Star, Volume2, VolumeX, Music, Zap, User, Calendar,
+  Volume2, VolumeX, Music, Calendar,
   Cloud, Edit2, Check, X, Plus, Search
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -114,71 +114,12 @@ const AudioWaveform = ({ isPlaying }) => {
   );
 };
 
-// Generate 82 audio calls data
-const generateAudioCalls = () => {
-  const calls = [];
-  const baseUrl = "https://lghzrewutybboombrafj.supabase.co/storage/v1/object/public/audio";
-  
-  // Names for variety
-  const names = [
-    "Bala Bharathi", "My Love ❤️", "Darling", "Pookie", "Baby",
-    "Sweetheart", "Jaanu", "Puppy", "My World", "Everything",
-    "Bala", "Bharathi", "Kanna", "Thangam", "Ponnu"
-  ];
-  
-  // Random durations (30 seconds to 10 minutes)
-  const getRandomDuration = () => {
-    const seconds = Math.floor(Math.random() * (600 - 30 + 1) + 30);
-    return {
-      seconds: seconds,
-      formatted: formatDuration(seconds)
-    };
-  };
-  
-  // Generate dates from June 1, 2024 to today
-  const startDate = new Date(2024, 5, 1); // June 1, 2024
-  const endDate = new Date();
-  
-  for (let i = 1; i <= 82; i++) {
-    const randomDate = new Date(startDate.getTime() + Math.random() * (endDate.getTime() - startDate.getTime()));
-    const year = randomDate.getFullYear();
-    const month = String(randomDate.getMonth() + 1).padStart(2, '0');
-    const day = String(randomDate.getDate()).padStart(2, '0');
-    const hours = String(Math.floor(Math.random() * 12) + 1).padStart(2, '0');
-    const minutes = String(Math.floor(Math.random() * 60)).padStart(2, '0');
-    const ampm = Math.random() > 0.5 ? 'PM' : 'AM';
-    
-    const duration = getRandomDuration();
-    const randomName = names[Math.floor(Math.random() * names.length)];
-    const isFavorite = Math.random() > 0.7; // 30% are favorites
-    
-    calls.push({
-      id: i,
-      name: i === 1 ? "Bala Bharathi - First Call 💕" : `${randomName} - Call ${i}`,
-      date: `${year}-${month}-${day}`,
-      time: `${hours}:${minutes} ${ampm}`,
-      audioUrl: `${baseUrl}/${i}.mp3`,
-      duration: duration.seconds,
-      durationFormatted: duration.formatted,
-      isFavorite: isFavorite,
-      createdAt: randomDate.toISOString()
-    });
-  }
-  
-  // Sort by date (newest first)
-  return calls.sort((a, b) => new Date(b.date) - new Date(a.date));
-};
-
-const allAudioCalls = generateAudioCalls();
-
 // Add Call Modal Component
 const AddCallModal = ({ onClose, onAdd, isOpen }) => {
-  const [callName, setCallName] = useState('');
+  const [callNumber, setCallNumber] = useState('');
   const [callDate, setCallDate] = useState(new Date().toISOString().split('T')[0]);
   const [callTime, setCallTime] = useState(new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }));
   const [audioUrl, setAudioUrl] = useState('');
-  const [isFavorite, setIsFavorite] = useState(false);
-  const [duration, setDuration] = useState(0);
   const [error, setError] = useState('');
 
   const handleUrlChange = (e) => {
@@ -186,25 +127,9 @@ const AddCallModal = ({ onClose, onAdd, isOpen }) => {
     setError('');
   };
 
-  const handleGetDuration = async () => {
-    if (!audioUrl) return;
-    
-    try {
-      const tempAudio = new Audio(audioUrl);
-      tempAudio.addEventListener('loadedmetadata', () => {
-        setDuration(Math.floor(tempAudio.duration));
-      });
-      tempAudio.addEventListener('error', () => {
-        setError('Unable to load audio from URL. Please check if the URL is valid.');
-      });
-    } catch (err) {
-      setError('Invalid audio URL');
-    }
-  };
-
   const handleSubmit = () => {
-    if (!callName.trim()) {
-      setError('Please enter a name for this call');
+    if (!callNumber.trim()) {
+      setError('Please enter a call number');
       return;
     }
     if (!audioUrl.trim()) {
@@ -214,23 +139,20 @@ const AddCallModal = ({ onClose, onAdd, isOpen }) => {
 
     const newCall = {
       id: Date.now(),
-      name: callName.trim(),
+      title: callNumber.trim(),
       date: callDate,
       time: callTime,
       audioUrl: audioUrl.trim(),
-      duration: duration,
-      durationFormatted: formatDuration(duration),
-      isFavorite: isFavorite,
       createdAt: new Date().toISOString()
     };
 
-    const existingCalls = localStorage.getItem('admin_calls');
+    const existingCalls = localStorage.getItem('audio_calls');
     let calls = existingCalls ? JSON.parse(existingCalls) : [];
     calls.push(newCall);
-    localStorage.setItem('admin_calls', JSON.stringify(calls));
+    localStorage.setItem('audio_calls', JSON.stringify(calls));
     
     window.dispatchEvent(new StorageEvent('storage', {
-      key: 'admin_calls',
+      key: 'audio_calls',
       newValue: JSON.stringify(calls)
     }));
     
@@ -257,7 +179,7 @@ const AddCallModal = ({ onClose, onAdd, isOpen }) => {
       >
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-2xl font-bold text-white flex items-center gap-2">
-            <Cloud className="w-6 h-6 text-rose-400" />
+            <Plus className="w-6 h-6 text-rose-400" />
             Add New Call
           </h2>
           <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-full transition">
@@ -273,12 +195,12 @@ const AddCallModal = ({ onClose, onAdd, isOpen }) => {
 
         <div className="space-y-4">
           <div>
-            <label className="block text-rose-400 text-sm mb-2">Call Name / Person</label>
+            <label className="block text-rose-400 text-sm mb-2">Call Number</label>
             <input
               type="text"
-              value={callName}
-              onChange={(e) => setCallName(e.target.value)}
-              placeholder="e.g., Bala Bharathi, Mom, Best Friend"
+              value={callNumber}
+              onChange={(e) => setCallNumber(e.target.value)}
+              placeholder="e.g., 83, 84, 85"
               className="w-full bg-black/50 border border-rose-500/30 rounded-lg px-4 py-2 text-white placeholder-gray-500 focus:outline-none focus:border-rose-500 transition"
             />
           </div>
@@ -306,45 +228,22 @@ const AddCallModal = ({ onClose, onAdd, isOpen }) => {
 
           <div>
             <label className="block text-rose-400 text-sm mb-2">Audio URL</label>
-            <div className="flex gap-2">
-              <input
-                type="url"
-                value={audioUrl}
-                onChange={handleUrlChange}
-                placeholder="https://your-supabase-url/audio.mp3"
-                className="flex-1 bg-black/50 border border-rose-500/30 rounded-lg px-4 py-2 text-white placeholder-gray-500 focus:outline-none focus:border-rose-500 transition"
-              />
-              <button
-                onClick={handleGetDuration}
-                className="px-3 py-2 bg-rose-500/20 hover:bg-rose-500/30 rounded-lg transition text-rose-400 text-sm"
-              >
-                Get Duration
-              </button>
-            </div>
-            {duration > 0 && (
-              <p className="text-green-400 text-xs mt-2">✓ Duration: {formatDuration(duration)}</p>
-            )}
-          </div>
-
-          <div className="flex items-center justify-between p-3 bg-black/30 rounded-lg">
-            <div className="flex items-center gap-2">
-              <Heart className={`w-5 h-5 ${isFavorite ? 'text-rose-500 fill-rose-500' : 'text-gray-400'}`} />
-              <span className="text-white">Mark as Favorite</span>
-            </div>
-            <button
-              onClick={() => setIsFavorite(!isFavorite)}
-              className={`w-12 h-6 rounded-full transition ${isFavorite ? 'bg-rose-500' : 'bg-gray-600'} relative`}
-            >
-              <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition ${isFavorite ? 'right-1' : 'left-1'}`} />
-            </button>
+            <input
+              type="url"
+              value={audioUrl}
+              onChange={handleUrlChange}
+              placeholder="https://your-supabase-url/audio.mp3"
+              className="w-full bg-black/50 border border-rose-500/30 rounded-lg px-4 py-2 text-white placeholder-gray-500 focus:outline-none focus:border-rose-500 transition"
+            />
+            <p className="text-gray-500 text-xs mt-1">Example: https://lghzrewutybboombrafj.supabase.co/storage/v1/object/public/audio/1.mp3</p>
           </div>
 
           <button
             onClick={handleSubmit}
-            disabled={!audioUrl.trim() || !callName.trim()}
+            disabled={!audioUrl.trim() || !callNumber.trim()}
             className="w-full bg-gradient-to-r from-rose-500 to-rose-700 text-white py-3 rounded-lg font-semibold hover:shadow-lg hover:shadow-rose-500/30 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
-            <Cloud className="w-5 h-5" />
+            <Plus className="w-5 h-5" />
             Add Call Recording
           </button>
         </div>
@@ -353,7 +252,7 @@ const AddCallModal = ({ onClose, onAdd, isOpen }) => {
   );
 };
 
-const CallCard = ({ call, isPlaying, onPlay, onPause, onEdit, onDelete }) => {
+const CallCard = ({ call, isPlaying, onPlay, onPause, onFavoriteToggle, isFavorited }) => {
   const audioRef = useRef(null);
   const [audioError, setAudioError] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
@@ -361,11 +260,6 @@ const CallCard = ({ call, isPlaying, onPlay, onPause, onEdit, onDelete }) => {
   const [volume, setVolume] = useState(1);
   const [isMuted, setIsMuted] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [isEditing, setIsEditing] = useState(false);
-  const [editName, setEditName] = useState(call.name);
-  const [editDate, setEditDate] = useState(call.date);
-  const [editTime, setEditTime] = useState(call.time);
-  const [editIsFavorite, setEditIsFavorite] = useState(call.isFavorite);
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -454,18 +348,6 @@ const CallCard = ({ call, isPlaying, onPlay, onPause, onEdit, onDelete }) => {
     }
   };
 
-  const saveEdit = () => {
-    const updatedCall = {
-      ...call,
-      name: editName,
-      date: editDate,
-      time: editTime,
-      isFavorite: editIsFavorite
-    };
-    onEdit(call.id, updatedCall);
-    setIsEditing(false);
-  };
-
   const isValidAudioUrl = call.audioUrl && call.audioUrl !== '' && 
     (call.audioUrl.startsWith('http') || call.audioUrl.startsWith('blob:'));
 
@@ -474,57 +356,6 @@ const CallCard = ({ call, isPlaying, onPlay, onPause, onEdit, onDelete }) => {
     day: 'numeric',
     year: 'numeric'
   }) : 'Date not set';
-
-  if (isEditing) {
-    return (
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="bg-gradient-to-br from-rose-950/20 to-black/40 backdrop-blur-md rounded-2xl p-5 border border-rose-500/20"
-      >
-        <div className="space-y-3">
-          <input
-            type="text"
-            value={editName}
-            onChange={(e) => setEditName(e.target.value)}
-            className="w-full bg-black/50 border border-rose-500/30 rounded-lg p-2 text-white"
-            placeholder="Caller name"
-          />
-          <div className="grid grid-cols-2 gap-2">
-            <input
-              type="date"
-              value={editDate}
-              onChange={(e) => setEditDate(e.target.value)}
-              className="bg-black/50 border border-rose-500/30 rounded-lg p-2 text-white text-sm"
-            />
-            <input
-              type="time"
-              value={editTime}
-              onChange={(e) => setEditTime(e.target.value)}
-              className="bg-black/50 border border-rose-500/30 rounded-lg p-2 text-white text-sm"
-            />
-          </div>
-          <label className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              checked={editIsFavorite}
-              onChange={(e) => setEditIsFavorite(e.target.checked)}
-              className="text-rose-500"
-            />
-            <span className="text-white">❤️ Favorite</span>
-          </label>
-          <div className="flex gap-2">
-            <button onClick={saveEdit} className="flex-1 bg-green-500 text-white px-3 py-1 rounded-lg text-sm">
-              <Check className="w-4 h-4 inline" /> Save
-            </button>
-            <button onClick={() => setIsEditing(false)} className="flex-1 bg-gray-500 text-white px-3 py-1 rounded-lg text-sm">
-              <X className="w-4 h-4 inline" /> Cancel
-            </button>
-          </div>
-        </div>
-      </motion.div>
-    );
-  }
 
   return (
     <motion.div
@@ -538,12 +369,8 @@ const CallCard = ({ call, isPlaying, onPlay, onPause, onEdit, onDelete }) => {
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
             <div className="relative">
-              <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
-                call.isFavorite 
-                  ? 'bg-gradient-to-r from-rose-500 to-amber-500 shadow-lg shadow-rose-500/30'
-                  : 'bg-rose-500/20'
-              }`}>
-                <Phone className={`w-5 h-5 ${call.isFavorite ? 'text-white' : 'text-rose-400'}`} />
+              <div className="w-12 h-12 rounded-full bg-rose-500/20 flex items-center justify-center">
+                <Phone className="w-5 h-5 text-rose-400" />
               </div>
               {isPlaying && (
                 <motion.div 
@@ -554,7 +381,7 @@ const CallCard = ({ call, isPlaying, onPlay, onPause, onEdit, onDelete }) => {
               )}
             </div>
             <div>
-              <p className="text-white font-semibold text-lg">{call.name}</p>
+              <p className="text-white font-bold text-xl">#{call.title}</p>
               <div className="flex flex-wrap items-center gap-3 mt-1">
                 <div className="flex items-center gap-1 text-rose-400 text-xs">
                   <Calendar className="w-3 h-3" />
@@ -566,32 +393,34 @@ const CallCard = ({ call, isPlaying, onPlay, onPause, onEdit, onDelete }) => {
                 </div>
                 <div className="flex items-center gap-1 text-rose-400/60 text-xs">
                   <Music className="w-3 h-3" />
-                  <span>{call.durationFormatted}</span>
+                  <span>{formatDuration(duration)}</span>
                 </div>
               </div>
             </div>
           </div>
           
-          <div className="flex gap-2">
-            {call.isFavorite && (
-              <div className="bg-gradient-to-r from-rose-500 to-amber-500 px-2 py-1 rounded-full">
-                <Star className="w-3 h-3 text-white fill-white" />
-              </div>
-            )}
-            <button onClick={() => setIsEditing(true)} className="text-blue-400 hover:text-blue-300 transition">
-              <Edit2 className="w-4 h-4" />
-            </button>
-            <button onClick={() => onDelete(call.id)} className="text-red-400 hover:text-red-300 transition">
-              <X className="w-4 h-4" />
-            </button>
-          </div>
+          {/* Favorite Button - Per User */}
+          <motion.button
+            whileHover={{ scale: 1.1 }}
+            whileTap={{ scale: 0.9 }}
+            onClick={() => onFavoriteToggle(call.id)}
+            className="p-2 transition"
+          >
+            <Heart 
+              className={`w-6 h-6 transition-all ${
+                isFavorited 
+                  ? 'text-rose-500 fill-rose-500' 
+                  : 'text-gray-400 hover:text-rose-400'
+              }`} 
+            />
+          </motion.button>
         </div>
         
         {call.audioUrl && call.audioUrl.includes('supabase.co') && (
           <div className="mb-3 flex items-center gap-1 text-xs text-rose-400/60">
             <Cloud className="w-3 h-3" />
             <span>Cloud Audio</span>
-            <span className="text-gray-500 ml-1">({call.id}/82)</span>
+            <span className="text-gray-500 ml-1">(Call {call.title})</span>
           </div>
         )}
         
@@ -685,18 +514,150 @@ export default function CallsPage() {
   const [calls, setCalls] = useState([]);
   const [playingId, setPlayingId] = useState(null);
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
-  const [refreshKey, setRefreshKey] = useState(0);
-  const [showAddModal, setShowAddModal] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [userFavorites, setUserFavorites] = useState([]);
+
+  // Load user favorites from localStorage
+  useEffect(() => {
+    const savedFavorites = localStorage.getItem('user_favorites');
+    if (savedFavorites) {
+      setUserFavorites(JSON.parse(savedFavorites));
+    }
+  }, []);
+
+  // Save user favorites to localStorage
+  const saveUserFavorites = (favorites) => {
+    localStorage.setItem('user_favorites', JSON.stringify(favorites));
+    setUserFavorites(favorites);
+  };
+
+  // Toggle favorite for a call
+  const toggleFavorite = (callId) => {
+    let newFavorites;
+    if (userFavorites.includes(callId)) {
+      newFavorites = userFavorites.filter(id => id !== callId);
+    } else {
+      newFavorites = [...userFavorites, callId];
+    }
+    saveUserFavorites(newFavorites);
+  };
+
+  // Check if a call is favorited by user
+  const isCallFavorited = (callId) => {
+    return userFavorites.includes(callId);
+  };
+
+  // ============================================
+  // 📝 EDIT YOUR 82 CALLS HERE - Only number, date, time, audioUrl
+  // ============================================
+  
+  const allAudioCalls = [
+    // Call 1 to 10
+    { id: 1, title: "1", date: "2024-06-01", time: "10:30 AM", audioUrl: "https://lghzrewutybboombrafj.supabase.co/storage/v1/object/public/audio/1.mp3" },
+    { id: 2, title: "2", date: "2024-06-02", time: "02:15 PM", audioUrl: "https://lghzrewutybboombrafj.supabase.co/storage/v1/object/public/audio/2.mp3" },
+    { id: 3, title: "3", date: "2024-06-03", time: "07:45 PM", audioUrl: "https://lghzrewutybboombrafj.supabase.co/storage/v1/object/public/audio/3.mp3" },
+    { id: 4, title: "4", date: "2024-06-04", time: "11:20 AM", audioUrl: "https://lghzrewutybboombrafj.supabase.co/storage/v1/object/public/audio/4.mp3" },
+    { id: 5, title: "5", date: "2024-06-05", time: "09:00 PM", audioUrl: "https://lghzrewutybboombrafj.supabase.co/storage/v1/object/public/audio/5.mp3" },
+    { id: 6, title: "6", date: "2024-06-06", time: "03:30 PM", audioUrl: "https://lghzrewutybboombrafj.supabase.co/storage/v1/object/public/audio/6.mp3" },
+    { id: 7, title: "7", date: "2024-06-07", time: "08:15 AM", audioUrl: "https://lghzrewutybboombrafj.supabase.co/storage/v1/object/public/audio/7.mp3" },
+    { id: 8, title: "8", date: "2024-06-08", time: "10:00 PM", audioUrl: "https://lghzrewutybboombrafj.supabase.co/storage/v1/object/public/audio/8.mp3" },
+    { id: 9, title: "9", date: "2024-06-09", time: "01:45 PM", audioUrl: "https://lghzrewutybboombrafj.supabase.co/storage/v1/object/public/audio/9.mp3" },
+    { id: 10, title: "10", date: "2024-06-10", time: "06:30 PM", audioUrl: "https://lghzrewutybboombrafj.supabase.co/storage/v1/object/public/audio/10.mp3" },
+    
+    // Call 11 to 20
+    { id: 11, title: "11", date: "2024-06-11", time: "09:15 AM", audioUrl: "https://lghzrewutybboombrafj.supabase.co/storage/v1/object/public/audio/11.mp3" },
+    { id: 12, title: "12", date: "2024-06-12", time: "04:20 PM", audioUrl: "https://lghzrewutybboombrafj.supabase.co/storage/v1/object/public/audio/12.mp3" },
+    { id: 13, title: "13", date: "2024-06-13", time: "11:00 PM", audioUrl: "https://lghzrewutybboombrafj.supabase.co/storage/v1/object/public/audio/13.mp3" },
+    { id: 14, title: "14", date: "2024-06-14", time: "07:30 AM", audioUrl: "https://lghzrewutybboombrafj.supabase.co/storage/v1/object/public/audio/14.mp3" },
+    { id: 15, title: "15", date: "2024-06-15", time: "02:45 PM", audioUrl: "https://lghzrewutybboombrafj.supabase.co/storage/v1/object/public/audio/15.mp3" },
+    { id: 16, title: "16", date: "2024-06-16", time: "08:00 PM", audioUrl: "https://lghzrewutybboombrafj.supabase.co/storage/v1/object/public/audio/16.mp3" },
+    { id: 17, title: "17", date: "2024-06-17", time: "12:15 PM", audioUrl: "https://lghzrewutybboombrafj.supabase.co/storage/v1/object/public/audio/17.mp3" },
+    { id: 18, title: "18", date: "2024-06-18", time: "05:30 PM", audioUrl: "https://lghzrewutybboombrafj.supabase.co/storage/v1/object/public/audio/18.mp3" },
+    { id: 19, title: "19", date: "2024-06-19", time: "10:45 PM", audioUrl: "https://lghzrewutybboombrafj.supabase.co/storage/v1/object/public/audio/19.mp3" },
+    { id: 20, title: "20", date: "2024-06-20", time: "03:00 AM", audioUrl: "https://lghzrewutybboombrafj.supabase.co/storage/v1/object/public/audio/20.mp3" },
+    
+    // Call 21 to 30
+    { id: 21, title: "21", date: "2024-06-21", time: "11:30 AM", audioUrl: "https://lghzrewutybboombrafj.supabase.co/storage/v1/object/public/audio/21.mp3" },
+    { id: 22, title: "22", date: "2024-06-22", time: "04:15 PM", audioUrl: "https://lghzrewutybboombrafj.supabase.co/storage/v1/object/public/audio/22.mp3" },
+    { id: 23, title: "23", date: "2024-06-23", time: "09:45 PM", audioUrl: "https://lghzrewutybboombrafj.supabase.co/storage/v1/object/public/audio/23.mp3" },
+    { id: 24, title: "24", date: "2024-06-24", time: "06:00 AM", audioUrl: "https://lghzrewutybboombrafj.supabase.co/storage/v1/object/public/audio/24.mp3" },
+    { id: 25, title: "25", date: "2024-06-25", time: "01:30 PM", audioUrl: "https://lghzrewutybboombrafj.supabase.co/storage/v1/object/public/audio/25.mp3" },
+    { id: 26, title: "26", date: "2024-06-26", time: "07:15 PM", audioUrl: "https://lghzrewutybboombrafj.supabase.co/storage/v1/object/public/audio/26.mp3" },
+    { id: 27, title: "27", date: "2024-06-27", time: "12:00 AM", audioUrl: "https://lghzrewutybboombrafj.supabase.co/storage/v1/object/public/audio/27.mp3" },
+    { id: 28, title: "28", date: "2024-06-28", time: "08:30 AM", audioUrl: "https://lghzrewutybboombrafj.supabase.co/storage/v1/object/public/audio/28.mp3" },
+    { id: 29, title: "29", date: "2024-06-29", time: "03:45 PM", audioUrl: "https://lghzrewutybboombrafj.supabase.co/storage/v1/object/public/audio/29.mp3" },
+    { id: 30, title: "30", date: "2024-06-30", time: "10:00 PM", audioUrl: "https://lghzrewutybboombrafj.supabase.co/storage/v1/object/public/audio/30.mp3" },
+    
+    // Call 31 to 40
+    { id: 31, title: "31", date: "2024-07-01", time: "05:30 AM", audioUrl: "https://lghzrewutybboombrafj.supabase.co/storage/v1/object/public/audio/31.mp3" },
+    { id: 32, title: "32", date: "2024-07-02", time: "11:15 AM", audioUrl: "https://lghzrewutybboombrafj.supabase.co/storage/v1/object/public/audio/32.mp3" },
+    { id: 33, title: "33", date: "2024-07-03", time: "08:45 PM", audioUrl: "https://lghzrewutybboombrafj.supabase.co/storage/v1/object/public/audio/33.mp3" },
+    { id: 34, title: "34", date: "2024-07-04", time: "02:00 PM", audioUrl: "https://lghzrewutybboombrafj.supabase.co/storage/v1/object/public/audio/34.mp3" },
+    { id: 35, title: "35", date: "2024-07-05", time: "09:30 PM", audioUrl: "https://lghzrewutybboombrafj.supabase.co/storage/v1/object/public/audio/35.mp3" },
+    { id: 36, title: "36", date: "2024-07-06", time: "04:45 AM", audioUrl: "https://lghzrewutybboombrafj.supabase.co/storage/v1/object/public/audio/36.mp3" },
+    { id: 37, title: "37", date: "2024-07-07", time: "12:30 PM", audioUrl: "https://lghzrewutybboombrafj.supabase.co/storage/v1/object/public/audio/37.mp3" },
+    { id: 38, title: "38", date: "2024-07-08", time: "07:00 PM", audioUrl: "https://lghzrewutybboombrafj.supabase.co/storage/v1/object/public/audio/38.mp3" },
+    { id: 39, title: "39", date: "2024-07-09", time: "01:15 AM", audioUrl: "https://lghzrewutybboombrafj.supabase.co/storage/v1/object/public/audio/39.mp3" },
+    { id: 40, title: "40", date: "2024-07-10", time: "06:30 AM", audioUrl: "https://lghzrewutybboombrafj.supabase.co/storage/v1/object/public/audio/40.mp3" },
+    
+    // Call 41 to 50
+    { id: 41, title: "41", date: "2024-07-11", time: "10:45 PM", audioUrl: "https://lghzrewutybboombrafj.supabase.co/storage/v1/object/public/audio/41.mp3" },
+    { id: 42, title: "42", date: "2024-07-12", time: "03:30 PM", audioUrl: "https://lghzrewutybboombrafj.supabase.co/storage/v1/object/public/audio/42.mp3" },
+    { id: 43, title: "43", date: "2024-07-13", time: "09:00 AM", audioUrl: "https://lghzrewutybboombrafj.supabase.co/storage/v1/object/public/audio/43.mp3" },
+    { id: 44, title: "44", date: "2024-07-14", time: "05:15 PM", audioUrl: "https://lghzrewutybboombrafj.supabase.co/storage/v1/object/public/audio/44.mp3" },
+    { id: 45, title: "45", date: "2024-07-15", time: "12:00 PM", audioUrl: "https://lghzrewutybboombrafj.supabase.co/storage/v1/object/public/audio/45.mp3" },
+    { id: 46, title: "46", date: "2024-07-16", time: "08:30 PM", audioUrl: "https://lghzrewutybboombrafj.supabase.co/storage/v1/object/public/audio/46.mp3" },
+    { id: 47, title: "47", date: "2024-07-17", time: "02:45 AM", audioUrl: "https://lghzrewutybboombrafj.supabase.co/storage/v1/object/public/audio/47.mp3" },
+    { id: 48, title: "48", date: "2024-07-18", time: "11:15 PM", audioUrl: "https://lghzrewutybboombrafj.supabase.co/storage/v1/object/public/audio/48.mp3" },
+    { id: 49, title: "49", date: "2024-07-19", time: "07:30 AM", audioUrl: "https://lghzrewutybboombrafj.supabase.co/storage/v1/object/public/audio/49.mp3" },
+    { id: 50, title: "50", date: "2024-07-20", time: "04:00 PM", audioUrl: "https://lghzrewutybboombrafj.supabase.co/storage/v1/object/public/audio/50.mp3" },
+    
+    // Call 51 to 60
+    { id: 51, title: "51", date: "2024-07-21", time: "10:15 AM", audioUrl: "https://lghzrewutybboombrafj.supabase.co/storage/v1/object/public/audio/51.mp3" },
+    { id: 52, title: "52", date: "2024-07-22", time: "01:45 PM", audioUrl: "https://lghzrewutybboombrafj.supabase.co/storage/v1/object/public/audio/52.mp3" },
+    { id: 53, title: "53", date: "2024-07-23", time: "09:30 PM", audioUrl: "https://lghzrewutybboombrafj.supabase.co/storage/v1/object/public/audio/53.mp3" },
+    { id: 54, title: "54", date: "2024-07-24", time: "06:00 AM", audioUrl: "https://lghzrewutybboombrafj.supabase.co/storage/v1/object/public/audio/54.mp3" },
+    { id: 55, title: "55", date: "2024-07-25", time: "03:15 PM", audioUrl: "https://lghzrewutybboombrafj.supabase.co/storage/v1/object/public/audio/55.mp3" },
+    { id: 56, title: "56", date: "2024-07-26", time: "11:45 PM", audioUrl: "https://lghzrewutybboombrafj.supabase.co/storage/v1/object/public/audio/56.mp3" },
+    { id: 57, title: "57", date: "2024-07-27", time: "08:00 AM", audioUrl: "https://lghzrewutybboombrafj.supabase.co/storage/v1/object/public/audio/57.mp3" },
+    { id: 58, title: "58", date: "2024-07-28", time: "05:30 PM", audioUrl: "https://lghzrewutybboombrafj.supabase.co/storage/v1/object/public/audio/58.mp3" },
+    { id: 59, title: "59", date: "2024-07-29", time: "12:15 AM", audioUrl: "https://lghzrewutybboombrafj.supabase.co/storage/v1/object/public/audio/59.mp3" },
+    { id: 60, title: "60", date: "2024-07-30", time: "07:45 PM", audioUrl: "https://lghzrewutybboombrafj.supabase.co/storage/v1/object/public/audio/60.mp3" },
+    
+    // Call 61 to 70
+    { id: 61, title: "61", date: "2024-08-01", time: "02:30 PM", audioUrl: "https://lghzrewutybboombrafj.supabase.co/storage/v1/object/public/audio/61.mp3" },
+    { id: 62, title: "62", date: "2024-08-02", time: "10:00 PM", audioUrl: "https://lghzrewutybboombrafj.supabase.co/storage/v1/object/public/audio/62.mp3" },
+    { id: 63, title: "63", date: "2024-08-03", time: "06:15 AM", audioUrl: "https://lghzrewutybboombrafj.supabase.co/storage/v1/object/public/audio/63.mp3" },
+    { id: 64, title: "64", date: "2024-08-04", time: "11:30 AM", audioUrl: "https://lghzrewutybboombrafj.supabase.co/storage/v1/object/public/audio/64.mp3" },
+    { id: 65, title: "65", date: "2024-08-05", time: "04:45 PM", audioUrl: "https://lghzrewutybboombrafj.supabase.co/storage/v1/object/public/audio/65.mp3" },
+    { id: 66, title: "66", date: "2024-08-06", time: "09:00 PM", audioUrl: "https://lghzrewutybboombrafj.supabase.co/storage/v1/object/public/audio/66.mp3" },
+    { id: 67, title: "67", date: "2024-08-07", time: "01:15 AM", audioUrl: "https://lghzrewutybboombrafj.supabase.co/storage/v1/object/public/audio/67.mp3" },
+    { id: 68, title: "68", date: "2024-08-08", time: "07:30 PM", audioUrl: "https://lghzrewutybboombrafj.supabase.co/storage/v1/object/public/audio/68.mp3" },
+    { id: 69, title: "69", date: "2024-08-09", time: "03:45 AM", audioUrl: "https://lghzrewutybboombrafj.supabase.co/storage/v1/object/public/audio/69.mp3" },
+    { id: 70, title: "70", date: "2024-08-10", time: "12:00 PM", audioUrl: "https://lghzrewutybboombrafj.supabase.co/storage/v1/object/public/audio/70.mp3" },
+    
+    // Call 71 to 82
+    { id: 71, title: "71", date: "2024-08-11", time: "08:15 PM", audioUrl: "https://lghzrewutybboombrafj.supabase.co/storage/v1/object/public/audio/71.mp3" },
+    { id: 72, title: "72", date: "2024-08-12", time: "05:30 AM", audioUrl: "https://lghzrewutybboombrafj.supabase.co/storage/v1/object/public/audio/72.mp3" },
+    { id: 73, title: "73", date: "2024-08-13", time: "10:45 PM", audioUrl: "https://lghzrewutybboombrafj.supabase.co/storage/v1/object/public/audio/73.mp3" },
+    { id: 74, title: "74", date: "2024-08-14", time: "02:00 PM", audioUrl: "https://lghzrewutybboombrafj.supabase.co/storage/v1/object/public/audio/74.mp3" },
+    { id: 75, title: "75", date: "2024-08-15", time: "09:30 AM", audioUrl: "https://lghzrewutybboombrafj.supabase.co/storage/v1/object/public/audio/75.mp3" },
+    { id: 76, title: "76", date: "2024-08-16", time: "06:45 PM", audioUrl: "https://lghzrewutybboombrafj.supabase.co/storage/v1/object/public/audio/76.mp3" },
+    { id: 77, title: "77", date: "2024-08-17", time: "11:15 PM", audioUrl: "https://lghzrewutybboombrafj.supabase.co/storage/v1/object/public/audio/77.mp3" },
+    { id: 78, title: "78", date: "2024-08-18", time: "04:30 AM", audioUrl: "https://lghzrewutybboombrafj.supabase.co/storage/v1/object/public/audio/78.mp3" },
+    { id: 79, title: "79", date: "2024-08-19", time: "01:00 PM", audioUrl: "https://lghzrewutybboombrafj.supabase.co/storage/v1/object/public/audio/79.mp3" },
+    { id: 80, title: "80", date: "2024-08-20", time: "07:15 PM", audioUrl: "https://lghzrewutybboombrafj.supabase.co/storage/v1/object/public/audio/80.mp3" },
+    { id: 81, title: "81", date: "2024-08-21", time: "12:30 AM", audioUrl: "https://lghzrewutybboombrafj.supabase.co/storage/v1/object/public/audio/81.mp3" },
+    { id: 82, title: "82", date: "2024-08-22", time: "08:45 PM", audioUrl: "https://lghzrewutybboombrafj.supabase.co/storage/v1/object/public/audio/82.mp3" }
+  ];
   
   // Load calls from localStorage or use generated data
   useEffect(() => {
     loadCalls();
     
     const handleStorageChange = (e) => {
-      if (e.key === 'admin_calls') {
+      if (e.key === 'audio_calls') {
         loadCalls();
-        setRefreshKey(prev => prev + 1);
       }
     };
     
@@ -705,54 +666,34 @@ export default function CallsPage() {
   }, []);
   
   const loadCalls = () => {
-    const savedCalls = localStorage.getItem('admin_calls');
+    const savedCalls = localStorage.getItem('audio_calls');
     
     if (savedCalls && JSON.parse(savedCalls).length > 0) {
       try {
         let callsData = JSON.parse(savedCalls);
         callsData = callsData.filter(call => call && call.id);
-        const sorted = callsData.sort((a, b) => new Date(b.date) - new Date(a.date));
+        const sorted = callsData.sort((a, b) => parseInt(a.title) - parseInt(b.title));
         setCalls(sorted);
       } catch (error) {
         console.error("Error parsing calls:", error);
         setCalls(allAudioCalls);
-        localStorage.setItem('admin_calls', JSON.stringify(allAudioCalls));
+        localStorage.setItem('audio_calls', JSON.stringify(allAudioCalls));
       }
     } else {
-      // Initialize with 82 audio calls
       setCalls(allAudioCalls);
-      localStorage.setItem('admin_calls', JSON.stringify(allAudioCalls));
+      localStorage.setItem('audio_calls', JSON.stringify(allAudioCalls));
     }
   };
   
   const handleAddCall = (newCall) => {
     loadCalls();
-    setRefreshKey(prev => prev + 1);
   };
   
-  const handleEditCall = (id, updatedCall) => {
-    const updatedCalls = calls.map(call => call.id === id ? updatedCall : call);
-    setCalls(updatedCalls);
-    localStorage.setItem('admin_calls', JSON.stringify(updatedCalls));
-    loadCalls();
-    setRefreshKey(prev => prev + 1);
-  };
-  
-  const handleDeleteCall = (id) => {
-    if (confirm('Delete this call recording?')) {
-      const updatedCalls = calls.filter(call => call.id !== id);
-      setCalls(updatedCalls);
-      localStorage.setItem('admin_calls', JSON.stringify(updatedCalls));
-      loadCalls();
-      setRefreshKey(prev => prev + 1);
-    }
-  };
-  
-  // Filter by favorites and search term
+  // Filter by user favorites and search term
   const filteredCalls = calls.filter(call => {
-    const matchesFavorite = showFavoritesOnly ? call.isFavorite : true;
+    const matchesFavorite = showFavoritesOnly ? isCallFavorited(call.id) : true;
     const matchesSearch = searchTerm === '' || 
-      call.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      call.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
       call.date.includes(searchTerm);
     return matchesFavorite && matchesSearch;
   });
@@ -771,8 +712,7 @@ export default function CallsPage() {
   };
   
   const totalCalls = calls.length;
-  const favoriteCalls = calls.filter(c => c.isFavorite).length;
-  const totalDuration = calls.reduce((sum, call) => sum + (call.duration || 0), 0);
+  const favoriteCalls = userFavorites.length;
   
   return (
     <div className="min-h-screen bg-black">
@@ -796,7 +736,7 @@ export default function CallsPage() {
                 <h1 className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-rose-400 to-rose-600 bg-clip-text text-transparent">
                   Call Memories
                 </h1>
-                <p className="text-gray-400 mt-1">82 Special Conversations 💕</p>
+                <p className="text-gray-400 mt-1">82 Special Voice Calls 💕</p>
               </div>
               
               <div className="flex gap-3">
@@ -805,12 +745,8 @@ export default function CallsPage() {
                   <p className="text-white text-xl font-bold">{totalCalls}</p>
                 </div>
                 <div className="bg-black/50 backdrop-blur-sm rounded-xl px-4 py-2 border border-rose-500/20">
-                  <p className="text-rose-400 text-xs">Favorites</p>
+                  <p className="text-rose-400 text-xs">My Favorites</p>
                   <p className="text-white text-xl font-bold">{favoriteCalls}</p>
-                </div>
-                <div className="bg-black/50 backdrop-blur-sm rounded-xl px-4 py-2 border border-rose-500/20">
-                  <p className="text-rose-400 text-xs">Total Hours</p>
-                  <p className="text-white text-xl font-bold">{Math.floor(totalDuration / 3600)}h</p>
                 </div>
               </div>
             </div>
@@ -824,7 +760,7 @@ export default function CallsPage() {
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
               <input
                 type="text"
-                placeholder="Search calls by name or date..."
+                placeholder="Search by call number..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full bg-black/50 border border-rose-500/30 rounded-lg pl-10 pr-4 py-2 text-white placeholder-gray-500 focus:outline-none focus:border-rose-500 transition"
@@ -840,7 +776,7 @@ export default function CallsPage() {
                 }`}
               >
                 <Heart className={`w-4 h-4 ${showFavoritesOnly ? 'fill-white' : ''}`} />
-                {showFavoritesOnly ? 'Favorites' : 'All Calls'}
+                {showFavoritesOnly ? 'My Favorites' : 'All Calls'}
               </button>
               
               <button
@@ -856,11 +792,11 @@ export default function CallsPage() {
           {/* Results Count */}
           <div className="mb-4">
             <p className="text-gray-400 text-sm">
-              {filteredCalls.length} of {calls.length} calls found
+              Showing {filteredCalls.length} of {calls.length} calls
             </p>
           </div>
           
-          {/* Calls List */}
+          {/* Calls Grid */}
           {filteredCalls.length === 0 ? (
             <motion.div
               initial={{ opacity: 0, y: 20 }}
@@ -877,7 +813,7 @@ export default function CallsPage() {
               </h2>
               <p className="text-gray-400">
                 {showFavoritesOnly 
-                  ? 'Mark some calls as favorites to see them here ❤️' 
+                  ? 'Click the heart icon on any call to add to your favorites ❤️' 
                   : searchTerm ? 'Try a different search term' : 'Click the + button to add a call'}
               </p>
             </motion.div>
@@ -886,13 +822,13 @@ export default function CallsPage() {
               <AnimatePresence>
                 {filteredCalls.map((call) => (
                   <CallCard
-                    key={`${call.id}-${refreshKey}`}
+                    key={call.id}
                     call={call}
                     isPlaying={playingId === call.id}
                     onPlay={() => handlePlay(call.id)}
                     onPause={handlePause}
-                    onEdit={handleEditCall}
-                    onDelete={handleDeleteCall}
+                    onFavoriteToggle={toggleFavorite}
+                    isFavorited={isCallFavorited(call.id)}
                   />
                 ))}
               </AnimatePresence>
