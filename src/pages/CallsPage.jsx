@@ -476,56 +476,61 @@ const CallCard = ({ call, index, isPlaying, onPlay, onPause, onEdit, onDelete })
       <div className="absolute inset-0 bg-gradient-to-r from-rose-500/5 to-transparent rounded-2xl opacity-0 group-hover:opacity-100 transition duration-500" />
       
       <div className="relative z-10">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-3">
-            <div className="relative">
-              <div className="w-12 h-12 rounded-full bg-gradient-to-r from-rose-500/30 to-rose-600/30 flex items-center justify-center">
-                <Phone className="w-5 h-5 text-rose-400" />
+        {/* Title Section - Made very prominent */}
+        <div className="mb-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-full bg-gradient-to-r from-rose-500 to-rose-600 flex items-center justify-center shadow-lg shadow-rose-500/30">
+                <Phone className="w-5 h-5 text-white" />
               </div>
-              {isPlaying && (
-                <motion.div 
-                  className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full"
-                  animate={{ scale: [1, 1.2, 1] }}
-                  transition={{ duration: 1, repeat: Infinity }}
-                />
-              )}
+              <div>
+                <p className="text-white font-bold text-3xl tracking-wide">{call.title}</p>
+                {isPlaying && (
+                  <motion.div 
+                    className="mt-1 text-green-400 text-xs"
+                    animate={{ opacity: [1, 0.5, 1] }}
+                    transition={{ duration: 1, repeat: Infinity }}
+                  >
+                    🔴 Playing now...
+                  </motion.div>
+                )}
+              </div>
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <p className="text-white font-bold text-2xl">{call.title}</p>
-              </div>
-              <div className="flex flex-wrap items-center gap-3 mt-1">
-                <div className="flex items-center gap-1 text-rose-400 text-xs">
-                  <Calendar className="w-3 h-3" />
-                  <span>{displayDate}</span>
-                </div>
-                <div className="flex items-center gap-1 text-rose-400 text-xs">
-                  <Clock className="w-3 h-3" />
-                  <span>{call.time}</span>
-                </div>
-                <div className="flex items-center gap-1 text-rose-400/60 text-xs">
-                  <Timer className="w-3 h-3" />
-                  <span>{call.durationFormatted || formatDuration(call.duration)}</span>
-                </div>
-              </div>
+            
+            <div className="flex gap-2">
+              <button 
+                onClick={() => setIsEditing(true)} 
+                className="text-blue-400 hover:text-blue-300 transition p-2 rounded-lg hover:bg-white/10"
+                title="Edit"
+              >
+                <Edit2 className="w-4 h-4" />
+              </button>
+              <button 
+                onClick={() => onDelete(call.id)} 
+                className="text-red-400 hover:text-red-300 transition p-2 rounded-lg hover:bg-white/10"
+                title="Delete"
+              >
+                <X className="w-4 h-4" />
+              </button>
             </div>
           </div>
-          
-          <div className="flex gap-2">
-            <button 
-              onClick={() => setIsEditing(true)} 
-              className="text-blue-400 hover:text-blue-300 transition p-2 rounded-lg hover:bg-white/10"
-              title="Edit"
-            >
-              <Edit2 className="w-4 h-4" />
-            </button>
-            <button 
-              onClick={() => onDelete(call.id)} 
-              className="text-red-400 hover:text-red-300 transition p-2 rounded-lg hover:bg-white/10"
-              title="Delete"
-            >
-              <X className="w-4 h-4" />
-            </button>
+        </div>
+        
+        {/* Date, Time, Duration */}
+        <div className="bg-black/30 rounded-xl p-3 mb-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-2 text-rose-400">
+              <Calendar className="w-4 h-4" />
+              <span className="text-white">{displayDate}</span>
+            </div>
+            <div className="flex items-center gap-2 text-rose-400">
+              <Clock className="w-4 h-4" />
+              <span className="text-white">{call.time}</span>
+            </div>
+            <div className="flex items-center gap-2 text-rose-400">
+              <Timer className="w-4 h-4" />
+              <span className="text-white font-mono">{call.durationFormatted || formatDuration(call.duration)}</span>
+            </div>
           </div>
         </div>
         
@@ -624,7 +629,7 @@ export default function CallsPage() {
   const generateAudioCalls = () => {
     const baseUrl = "https://lghzrewutybboombrafj.supabase.co/storage/v1/object/public/audio";
     
-    // All 82 calls ordered from 1 to 82 with clear titles
+    // All 82 calls ordered from 1 to 82
     const callsData = [
       { number: 1, title: "Lucy(1)", date: "2026-01-05", time: "4:10 pm", durationStr: "00:15" },
       { number: 2, title: "Lucy(2)", date: "2026-01-10", time: "4:13 pm", durationStr: "16:47" },
