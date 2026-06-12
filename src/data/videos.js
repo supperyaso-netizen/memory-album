@@ -19,7 +19,7 @@ export const videos = [
     id: 4,
     title: "VC with my Pookie 💌",
     thumbnail: "/favicon.png",
-    youtubelink: "https://youtu.be/KqeP8wmBmuE?si=ZQbeAnaUbjmTTIrm"
+    youtubelink: "https://youtu.be/SAqHOCvmZxg?si=qp0VllGnvD2DZL5x"
   },{
     id: 5,
     title: "VC with my Pookie 💌",

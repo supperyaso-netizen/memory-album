@@ -285,7 +285,8 @@ const secretVideos = [
     videoUrl: "https://youtu.be/KqeP8wmBmuE",  // Local video in public/videos/
     thumbnail: "/videos/pookie.jpg",
     duration: "58:23",
-    date: "06 April 2026"
+    date: "06 April 2026",
+    isYouTube: true
   },
   {
     id: 2,
@@ -293,7 +294,8 @@ const secretVideos = [
     videoUrl: "https://youtu.be/5hoMtVwJJP0",  // Local video in public/videos/
     thumbnail: "/videos/pookie.jpg",
     duration: "46:30",
-    date: "07 April 2026"
+    date: "07 April 2026",
+    isYouTube: true
   },
   {
     id: 3,
@@ -307,10 +309,11 @@ const secretVideos = [
   {
     id: 4,
     title: "VC with my Pookie 💌",
-    videoUrl: "/videos/secret4.mp4",  // Local video in public/videos/
+    videoUrl: "https://youtu.be/SAqHOCvmZxg",  // Local video in public/videos/
     thumbnail: "/videos/pookie.jpg",
     duration: "53:18",
-    date: "09 April 2026"
+    date: "09 April 2026",
+    isYouTube: true
   },
   {
     id: 5,
@@ -318,7 +321,8 @@ const secretVideos = [
     videoUrl: "https://youtu.be/okH9mUbrPlY",  // Local video in public/videos/
     thumbnail: "/videos/pookie.jpg",
     duration: "33:29",
-    date: "16 May 2026"
+    date: "16 May 2026",
+    isYouTube: true
   }
 ];
 
