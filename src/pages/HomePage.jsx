@@ -86,7 +86,7 @@ const RelationshipTimer = () => {
               <Heart className="w-5 h-5 text-rose-400 fill-rose-400/50" />
             </motion.div>
             <span className="text-rose-400/80 text-xs uppercase tracking-[0.2em] font-light">
-              Every Moment Counts
+              Every second Counts
             </span>
             <motion.div
               animate={{ scale: [1, 1.2, 1] }}
@@ -128,7 +128,7 @@ const RelationshipTimer = () => {
           {/* Love Quote */}
           <div className="pt-2">
             <p className="text-white/30 text-xs italic tracking-wide">
-              "Every second with you is a treasure I'll keep forever"
+              "Every Moment with you is a treasure I'll keep forever"
             </p>
           </div>
         </div>
