@@ -3,7 +3,7 @@ export const videos = [
     id: 1,
     title: "First video call ❤️",
     thumbnail: "/favicon.png",
-    youtubelink: "https://youtu.be/KqeP8wmBmuE"
+    youtubelink: "https://youtu.be/KqeP8wmBmuE?si=ZQbeAnaUbjmTTIrm"
   },
   {
     id: 2,
