@@ -294,8 +294,8 @@ const secretVideos = [
     videoUrl: "https://youtu.be/5hoMtVwJJP0",  // Local video in public/videos/
     thumbnail: "/videos/pookie.jpg",
     duration: "46:30",
-    date: "07 April 2026",
-    isYouTube: true
+    date: "07 April 2026"
+    
   },
   {
     id: 3,
@@ -303,8 +303,8 @@ const secretVideos = [
     videoUrl: "https://youtu.be/YszJXD2nBJU", // YouTube link
     thumbnail: "/videos/pookie.jpg",
     duration: "01:31:55",
-    date: "08 April 2026",
-    isYouTube: true
+    date: "08 April 2026"
+    
   },
   {
     id: 4,
@@ -312,8 +312,8 @@ const secretVideos = [
     videoUrl: "https://youtu.be/SAqHOCvmZxg",  // Local video in public/videos/
     thumbnail: "/videos/pookie.jpg",
     duration: "53:18",
-    date: "09 April 2026",
-    isYouTube: true
+    date: "09 April 2026"
+    
   },
   {
     id: 5,
@@ -321,8 +321,8 @@ const secretVideos = [
     videoUrl: "https://youtu.be/okH9mUbrPlY",  // Local video in public/videos/
     thumbnail: "/videos/pookie.jpg",
     duration: "33:29",
-    date: "16 May 2026",
-    isYouTube: true
+    date: "16 May 2026"
+    
   }
 ];
 

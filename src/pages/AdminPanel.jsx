@@ -50,32 +50,28 @@ export default function AdminPanel() {
     try {
       const savedPhotos = localStorage.getItem('admin_photos');
       if (savedPhotos) {
-        const parsedPhotos = JSON.parse(savedPhotos);
-        setPhotos(parsedPhotos);
+        setPhotos(JSON.parse(savedPhotos));
       } else {
         setPhotos([]);
       }
       
       const savedMemories = localStorage.getItem('admin_special_memories');
       if (savedMemories) {
-        const parsedMemories = JSON.parse(savedMemories);
-        setSpecialMemories(parsedMemories);
+        setSpecialMemories(JSON.parse(savedMemories));
       } else {
         setSpecialMemories([]);
       }
       
       const savedVideos = localStorage.getItem('admin_videos');
       if (savedVideos) {
-        const parsedVideos = JSON.parse(savedVideos);
-        setVideos(parsedVideos);
+        setVideos(JSON.parse(savedVideos));
       } else {
         setVideos([]);
       }
       
       const savedCalls = localStorage.getItem('admin_calls');
       if (savedCalls) {
-        const parsedCalls = JSON.parse(savedCalls);
-        setCalls(parsedCalls);
+        setCalls(JSON.parse(savedCalls));
       } else {
         setCalls([]);
       }
@@ -91,17 +87,14 @@ export default function AdminPanel() {
     window.dispatchEvent(new CustomEvent(`${key}Updated`));
   };
   
-  // Helper: Create blob URL from file
-  const createBlobUrl = (file) => {
-    if (!file) return null;
-    return URL.createObjectURL(file);
-  };
-  
-  // Helper: Revoke blob URL
-  const revokeBlobUrl = (url) => {
-    if (url && url.startsWith('blob:')) {
-      URL.revokeObjectURL(url);
-    }
+  // Helper: Convert file to Base64
+  const fileToBase64 = (file) => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = (error) => reject(error);
+    });
   };
   
   // ==================== PHOTO MANAGEMENT ====================
@@ -117,7 +110,7 @@ export default function AdminPanel() {
     }
   };
   
-  const handleAddPhoto = () => {
+  const handleAddPhoto = async () => {
     if (!newPhoto.file) {
       alert('⚠️ Please select a photo!');
       return;
@@ -127,11 +120,11 @@ export default function AdminPanel() {
       return;
     }
     
-    const reader = new FileReader();
-    reader.onloadend = () => {
+    try {
+      const base64 = await fileToBase64(newPhoto.file);
       const photo = {
         id: Date.now(),
-        url: reader.result,
+        url: base64, // Store as Base64
         caption: newPhoto.caption,
         date: newPhoto.date || new Date().toLocaleDateString()
       };
@@ -145,8 +138,9 @@ export default function AdminPanel() {
       const fileInput = document.getElementById('photoFile');
       if (fileInput) fileInput.value = '';
       alert('✅ Photo added successfully!');
-    };
-    reader.readAsDataURL(newPhoto.file);
+    } catch (error) {
+      alert('Error adding photo: ' + error.message);
+    }
   };
   
   const handleUpdatePhoto = () => {
@@ -193,7 +187,7 @@ export default function AdminPanel() {
     }
   };
   
-  const handleAddMemory = () => {
+  const handleAddMemory = async () => {
     if (!newMemory.file) {
       alert('⚠️ Please select a file!');
       return;
@@ -203,30 +197,30 @@ export default function AdminPanel() {
       return;
     }
     
-    const isVideo = newMemory.file.type.startsWith('video/');
-    
-    if (isVideo) {
-      // For video, store as blob URL
-      const videoUrl = URL.createObjectURL(newMemory.file);
-      const memory = {
-        id: Date.now(),
-        url: videoUrl,
-        caption: newMemory.caption,
-        date: newMemory.date || new Date().toLocaleDateString(),
-        type: 'video',
-        thumbnail: memoryThumbnailPreview || null
-      };
-      const updatedMemories = [...specialMemories, memory];
-      setSpecialMemories(updatedMemories);
-      saveData('admin_special_memories', updatedMemories);
-      alert('✅ Video memory added!');
-    } else {
-      // For image, store as base64
-      const reader = new FileReader();
-      reader.onloadend = () => {
+    try {
+      const isVideo = newMemory.file.type.startsWith('video/');
+      
+      if (isVideo) {
+        // For video, convert to Base64 (large files might be slow)
+        const base64 = await fileToBase64(newMemory.file);
         const memory = {
           id: Date.now(),
-          url: reader.result,
+          url: base64, // Store as Base64
+          caption: newMemory.caption,
+          date: newMemory.date || new Date().toLocaleDateString(),
+          type: 'video',
+          thumbnail: memoryThumbnailPreview || null
+        };
+        const updatedMemories = [...specialMemories, memory];
+        setSpecialMemories(updatedMemories);
+        saveData('admin_special_memories', updatedMemories);
+        alert('✅ Video memory added!');
+      } else {
+        // For image, convert to Base64
+        const base64 = await fileToBase64(newMemory.file);
+        const memory = {
+          id: Date.now(),
+          url: base64,
           caption: newMemory.caption,
           date: newMemory.date || new Date().toLocaleDateString(),
           type: 'image',
@@ -236,18 +230,19 @@ export default function AdminPanel() {
         setSpecialMemories(updatedMemories);
         saveData('admin_special_memories', updatedMemories);
         alert('✅ Image memory added!');
-      };
-      reader.readAsDataURL(newMemory.file);
+      }
+      
+      // Reset form
+      setNewMemory({ file: null, caption: '', date: '', thumbnail: null });
+      setMemoryPreview(null);
+      setMemoryThumbnailPreview(null);
+      const fileInput = document.getElementById('memoryFile');
+      const thumbInput = document.getElementById('memoryThumbnail');
+      if (fileInput) fileInput.value = '';
+      if (thumbInput) thumbInput.value = '';
+    } catch (error) {
+      alert('Error adding memory: ' + error.message);
     }
-    
-    // Reset form
-    setNewMemory({ file: null, caption: '', date: '', thumbnail: null });
-    setMemoryPreview(null);
-    setMemoryThumbnailPreview(null);
-    const fileInput = document.getElementById('memoryFile');
-    const thumbInput = document.getElementById('memoryThumbnail');
-    if (fileInput) fileInput.value = '';
-    if (thumbInput) thumbInput.value = '';
   };
   
   const handleUpdateMemory = () => {
@@ -262,10 +257,6 @@ export default function AdminPanel() {
   
   const handleDeleteMemory = (id) => {
     if (confirm('Delete this special memory permanently?')) {
-      const memoryToDelete = specialMemories.find(m => m.id === id);
-      if (memoryToDelete?.url?.startsWith('blob:')) {
-        revokeBlobUrl(memoryToDelete.url);
-      }
       const updatedMemories = specialMemories.filter(m => m.id !== id);
       setSpecialMemories(updatedMemories);
       saveData('admin_special_memories', updatedMemories);
@@ -278,8 +269,6 @@ export default function AdminPanel() {
     const file = e.target.files[0];
     if (file && file.type.startsWith('video/')) {
       setNewVideo({ ...newVideo, file: file });
-      // Revoke old preview
-      if (videoPreview) revokeBlobUrl(videoPreview);
       setVideoPreview(URL.createObjectURL(file));
     } else {
       alert('Please select a valid video file');
@@ -296,7 +285,7 @@ export default function AdminPanel() {
     }
   };
   
-  const handleAddVideo = () => {
+  const handleAddVideo = async () => {
     if (!newVideo.file) {
       alert('⚠️ Please select a video!');
       return;
@@ -306,30 +295,35 @@ export default function AdminPanel() {
       return;
     }
     
-    const videoUrl = URL.createObjectURL(newVideo.file);
-    const video = {
-      id: Date.now(),
-      videoUrl: videoUrl,
-      title: newVideo.title,
-      thumbnail: thumbnailPreview || "https://images.unsplash.com/photo-1518199266791-5375a83190b5?w=400",
-      duration: newVideo.duration || "0:00",
-      date: newVideo.date || new Date().toLocaleDateString()
-    };
-    
-    const updatedVideos = [...videos, video];
-    setVideos(updatedVideos);
-    saveData('admin_videos', updatedVideos);
-    
-    // Reset form
-    setNewVideo({ file: null, title: '', thumbnail: null, duration: '', date: '' });
-    if (videoPreview) revokeBlobUrl(videoPreview);
-    setVideoPreview(null);
-    setThumbnailPreview(null);
-    const videoInput = document.getElementById('videoFile');
-    const thumbInput = document.getElementById('thumbnailFile');
-    if (videoInput) videoInput.value = '';
-    if (thumbInput) thumbInput.value = '';
-    alert('✅ Video added successfully!');
+    try {
+      // Convert video to Base64
+      const base64 = await fileToBase64(newVideo.file);
+      const video = {
+        id: Date.now(),
+        videoUrl: base64, // Store as Base64
+        title: newVideo.title,
+        thumbnail: thumbnailPreview || "https://images.unsplash.com/photo-1518199266791-5375a83190b5?w=400",
+        duration: newVideo.duration || "0:00",
+        date: newVideo.date || new Date().toLocaleDateString()
+      };
+      
+      const updatedVideos = [...videos, video];
+      setVideos(updatedVideos);
+      saveData('admin_videos', updatedVideos);
+      
+      // Reset form
+      setNewVideo({ file: null, title: '', thumbnail: null, duration: '', date: '' });
+      if (videoPreview) URL.revokeObjectURL(videoPreview);
+      setVideoPreview(null);
+      setThumbnailPreview(null);
+      const videoInput = document.getElementById('videoFile');
+      const thumbInput = document.getElementById('thumbnailFile');
+      if (videoInput) videoInput.value = '';
+      if (thumbInput) thumbInput.value = '';
+      alert('✅ Video added successfully!');
+    } catch (error) {
+      alert('Error adding video: ' + error.message);
+    }
   };
   
   const handleUpdateVideo = () => {
@@ -344,10 +338,6 @@ export default function AdminPanel() {
   
   const handleDeleteVideo = (id) => {
     if (confirm('Delete this video permanently?')) {
-      const videoToDelete = videos.find(v => v.id === id);
-      if (videoToDelete?.videoUrl?.startsWith('blob:')) {
-        revokeBlobUrl(videoToDelete.videoUrl);
-      }
       const updatedVideos = videos.filter(v => v.id !== id);
       setVideos(updatedVideos);
       saveData('admin_videos', updatedVideos);
@@ -360,7 +350,6 @@ export default function AdminPanel() {
     const file = e.target.files[0];
     if (file && file.type.startsWith('audio/')) {
       setNewCall({ ...newCall, file: file });
-      if (callPreview) revokeBlobUrl(callPreview);
       setCallPreview(URL.createObjectURL(file));
     } else {
       alert('Please select a valid audio file (MP3, WAV, M4A)');
@@ -374,35 +363,40 @@ export default function AdminPanel() {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
   
-  const handleAddCall = () => {
+  const handleAddCall = async () => {
     if (!newCall.file) {
       alert('⚠️ Please select an audio file!');
       return;
     }
     
-    const audioUrl = URL.createObjectURL(newCall.file);
-    const call = {
-      id: Date.now(),
-      audioUrl: audioUrl,
-      duration: parseInt(newCall.duration) || 0,
-      durationFormatted: formatDuration(parseInt(newCall.duration) || 0),
-      date: newCall.date || new Date().toISOString().split('T')[0],
-      time: newCall.time || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      isFavorite: newCall.isFavorite,
-      name: newCall.name.trim() || 'Bala Bharathi'
-    };
-    
-    const updatedCalls = [...calls, call];
-    setCalls(updatedCalls);
-    saveData('admin_calls', updatedCalls);
-    
-    // Reset form
-    setNewCall({ file: null, duration: '', date: '', time: '', isFavorite: false, name: '' });
-    if (callPreview) revokeBlobUrl(callPreview);
-    setCallPreview(null);
-    const fileInput = document.getElementById('callFile');
-    if (fileInput) fileInput.value = '';
-    alert('✅ Call recording added successfully!');
+    try {
+      // Convert audio to Base64
+      const base64 = await fileToBase64(newCall.file);
+      const call = {
+        id: Date.now(),
+        audioUrl: base64, // Store as Base64
+        duration: parseInt(newCall.duration) || 0,
+        durationFormatted: formatDuration(parseInt(newCall.duration) || 0),
+        date: newCall.date || new Date().toISOString().split('T')[0],
+        time: newCall.time || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        isFavorite: newCall.isFavorite,
+        name: newCall.name.trim() || 'Bala Bharathi'
+      };
+      
+      const updatedCalls = [...calls, call];
+      setCalls(updatedCalls);
+      saveData('admin_calls', updatedCalls);
+      
+      // Reset form
+      setNewCall({ file: null, duration: '', date: '', time: '', isFavorite: false, name: '' });
+      if (callPreview) URL.revokeObjectURL(callPreview);
+      setCallPreview(null);
+      const fileInput = document.getElementById('callFile');
+      if (fileInput) fileInput.value = '';
+      alert('✅ Call recording added successfully!');
+    } catch (error) {
+      alert('Error adding call: ' + error.message);
+    }
   };
   
   const handleUpdateCall = () => {
@@ -417,10 +411,6 @@ export default function AdminPanel() {
   
   const handleDeleteCall = (id) => {
     if (confirm('Delete this call recording permanently?')) {
-      const callToDelete = calls.find(c => c.id === id);
-      if (callToDelete?.audioUrl?.startsWith('blob:')) {
-        revokeBlobUrl(callToDelete.audioUrl);
-      }
       const updatedCalls = calls.filter(c => c.id !== id);
       setCalls(updatedCalls);
       saveData('admin_calls', updatedCalls);
@@ -502,9 +492,10 @@ export default function AdminPanel() {
           Admin Dashboard
         </h1>
         <p className="text-gray-400 mt-2">Manage Photos, Memories, Videos & Calls ❤️</p>
+        <p className="text-amber-400 text-xs mt-1">⚠️ Files are stored as Base64 (works across all devices)</p>
       </div>
       
-      {/* Tab Navigation */}
+      {/* Tab Navigation - Same as before */}
       <div className="max-w-7xl mx-auto px-4 mb-8">
         <div className="flex flex-wrap gap-2 justify-center">
           {[
@@ -536,9 +527,10 @@ export default function AdminPanel() {
       </div>
       
       <div className="max-w-7xl mx-auto px-4">
-        {/* PHOTOS SECTION */}
+        {/* PHOTOS SECTION - Same UI but now stores Base64 */}
         {activeTab === 'photos' && (
           <div className="space-y-8">
+            {/* Add Photo Form - Same as before */}
             <div className="bg-gradient-to-br from-rose-950/20 to-black/40 backdrop-blur-md rounded-2xl p-6 border border-rose-500/20">
               <h2 className="text-xl font-semibold text-white mb-4 flex items-center gap-2">
                 <Plus className="w-5 h-5 text-rose-400" />
@@ -552,7 +544,7 @@ export default function AdminPanel() {
                   </div>
                   <div>
                     <label className="text-rose-400 text-sm block mb-1">📝 Caption *</label>
-                    <input type="text" placeholder="Caption *" value={newPhoto.caption} onChange={(e) => setNewPhoto({ ...newPhoto, caption: e.target.value })} className="w-full bg-black/50 border border-rose-500/30 rounded-lg p-2 text-white" />
+                    <input type="text" placeholder="Caption" value={newPhoto.caption} onChange={(e) => setNewPhoto({ ...newPhoto, caption: e.target.value })} className="w-full bg-black/50 border border-rose-500/30 rounded-lg p-2 text-white" />
                   </div>
                   <div>
                     <label className="text-rose-400 text-sm block mb-1">📅 Date</label>
@@ -571,6 +563,7 @@ export default function AdminPanel() {
               </div>
             </div>
             
+            {/* Photos Grid */}
             <div className="space-y-3">
               <h3 className="text-lg font-semibold text-white">Your Photos ({photos.length})</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
@@ -608,6 +601,7 @@ export default function AdminPanel() {
         {/* SPECIAL MEMORIES SECTION */}
         {activeTab === 'memories' && (
           <div className="space-y-8">
+            {/* Add Memory Form - Same UI */}
             <div className="bg-gradient-to-br from-rose-950/20 to-black/40 backdrop-blur-md rounded-2xl p-6 border border-rose-500/20">
               <h2 className="text-xl font-semibold text-white mb-4 flex items-center gap-2">
                 <Star className="w-5 h-5 text-rose-400" />
@@ -622,11 +616,10 @@ export default function AdminPanel() {
                   <div>
                     <label className="text-rose-400 text-sm block mb-1">🖼️ Custom Thumbnail (For Videos)</label>
                     <input id="memoryThumbnail" type="file" accept="image/*" onChange={handleMemoryThumbnailChange} className="w-full bg-black/50 border border-rose-500/30 rounded-lg p-2 text-white" />
-                    <p className="text-gray-500 text-xs mt-1">Add a custom thumbnail for video memories</p>
                   </div>
                   <div>
                     <label className="text-rose-400 text-sm block mb-1">📝 Caption *</label>
-                    <input type="text" placeholder="Caption *" value={newMemory.caption} onChange={(e) => setNewMemory({ ...newMemory, caption: e.target.value })} className="w-full bg-black/50 border border-rose-500/30 rounded-lg p-2 text-white" />
+                    <input type="text" placeholder="Caption" value={newMemory.caption} onChange={(e) => setNewMemory({ ...newMemory, caption: e.target.value })} className="w-full bg-black/50 border border-rose-500/30 rounded-lg p-2 text-white" />
                   </div>
                   <div>
                     <label className="text-rose-400 text-sm block mb-1">📅 Date</label>
@@ -657,11 +650,12 @@ export default function AdminPanel() {
               </div>
             </div>
             
+            {/* Memories Grid */}
             <div className="space-y-3">
               <h3 className="text-lg font-semibold text-white">Special Memories ({specialMemories.length})</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {specialMemories.map(memory => (
-                  <div key={memory.id} className="bg-gradient-to-br from-rose-950/20 to-black-40 rounded-xl p-3 border border-rose-500/20">
+                  <div key={memory.id} className="bg-gradient-to-br from-rose-950/20 to-black/40 rounded-xl p-3 border border-rose-500/20">
                     {editingMemory?.id === memory.id ? (
                       <div className="space-y-2">
                         {memory.type === 'video' ? (
@@ -723,7 +717,7 @@ export default function AdminPanel() {
           </div>
         )}
         
-        {/* VIDEOS SECTION */}
+        {/* VIDEOS SECTION - Now stores Base64 */}
         {activeTab === 'videos' && (
           <div className="space-y-8">
             <div className="bg-gradient-to-br from-rose-950/20 to-black/40 backdrop-blur-md rounded-2xl p-6 border border-rose-500/20">
@@ -740,15 +734,14 @@ export default function AdminPanel() {
                   <div>
                     <label className="text-rose-400 text-sm block mb-1">🖼️ Thumbnail Image (Optional)</label>
                     <input id="thumbnailFile" type="file" accept="image/*" onChange={handleThumbnailChange} className="w-full bg-black/50 border border-rose-500/30 rounded-lg p-2 text-white" />
-                    <p className="text-gray-500 text-xs mt-1">Upload a custom thumbnail for your video</p>
                   </div>
                   <div>
                     <label className="text-rose-400 text-sm block mb-1">📝 Title *</label>
-                    <input type="text" placeholder="Title *" value={newVideo.title} onChange={(e) => setNewVideo({ ...newVideo, title: e.target.value })} className="w-full bg-black/50 border border-rose-500/30 rounded-lg p-2 text-white" />
+                    <input type="text" placeholder="Title" value={newVideo.title} onChange={(e) => setNewVideo({ ...newVideo, title: e.target.value })} className="w-full bg-black/50 border border-rose-500/30 rounded-lg p-2 text-white" />
                   </div>
                   <div>
                     <label className="text-rose-400 text-sm block mb-1">⏱️ Duration (e.g., 2:30)</label>
-                    <input type="text" placeholder="Duration (Optional)" value={newVideo.duration} onChange={(e) => setNewVideo({ ...newVideo, duration: e.target.value })} className="w-full bg-black/50 border border-rose-500/30 rounded-lg p-2 text-white" />
+                    <input type="text" placeholder="Duration" value={newVideo.duration} onChange={(e) => setNewVideo({ ...newVideo, duration: e.target.value })} className="w-full bg-black/50 border border-rose-500/30 rounded-lg p-2 text-white" />
                   </div>
                   <div>
                     <label className="text-rose-400 text-sm block mb-1">📅 Date</label>
@@ -810,7 +803,7 @@ export default function AdminPanel() {
           </div>
         )}
         
-        {/* CALLS SECTION */}
+        {/* CALLS SECTION - Now stores Base64 */}
         {activeTab === 'calls' && (
           <div className="space-y-8">
             <div className="bg-gradient-to-br from-rose-950/20 to-black/40 backdrop-blur-md rounded-2xl p-6 border border-rose-500/20">
@@ -823,55 +816,27 @@ export default function AdminPanel() {
                   <div>
                     <label className="text-rose-400 text-sm block mb-1">📞 Audio File * (MP3, WAV, M4A)</label>
                     <input id="callFile" type="file" accept="audio/*" onChange={handleCallFileChange} className="w-full bg-black/50 border border-rose-500/30 rounded-lg p-2 text-white" />
-                    <p className="text-gray-500 text-xs mt-1">Upload call recording audio file</p>
                   </div>
                   <div>
                     <label className="text-rose-400 text-sm block mb-1">👤 Caller Name</label>
-                    <input 
-                      type="text" 
-                      placeholder="Caller Name (e.g., Bala Bharathi)" 
-                      value={newCall.name} 
-                      onChange={(e) => setNewCall({ ...newCall, name: e.target.value })} 
-                      className="w-full bg-black/50 border border-rose-500/30 rounded-lg p-2 text-white" 
-                    />
+                    <input type="text" placeholder="Caller Name" value={newCall.name} onChange={(e) => setNewCall({ ...newCall, name: e.target.value })} className="w-full bg-black/50 border border-rose-500/30 rounded-lg p-2 text-white" />
                   </div>
                   <div>
                     <label className="text-rose-400 text-sm block mb-1">⏱️ Duration (seconds)</label>
-                    <input 
-                      type="number" 
-                      placeholder="Duration in seconds (Optional)" 
-                      value={newCall.duration} 
-                      onChange={(e) => setNewCall({ ...newCall, duration: e.target.value })} 
-                      className="w-full bg-black/50 border border-rose-500/30 rounded-lg p-2 text-white" 
-                    />
+                    <input type="number" placeholder="Duration in seconds" value={newCall.duration} onChange={(e) => setNewCall({ ...newCall, duration: e.target.value })} className="w-full bg-black/50 border border-rose-500/30 rounded-lg p-2 text-white" />
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="text-rose-400 text-sm block mb-1">📅 Date</label>
-                      <input 
-                        type="date" 
-                        value={newCall.date} 
-                        onChange={(e) => setNewCall({ ...newCall, date: e.target.value })} 
-                        className="w-full bg-black/50 border border-rose-500/30 rounded-lg p-2 text-white" 
-                      />
+                      <input type="date" value={newCall.date} onChange={(e) => setNewCall({ ...newCall, date: e.target.value })} className="w-full bg-black/50 border border-rose-500/30 rounded-lg p-2 text-white" />
                     </div>
                     <div>
                       <label className="text-rose-400 text-sm block mb-1">⏰ Time</label>
-                      <input 
-                        type="time" 
-                        value={newCall.time} 
-                        onChange={(e) => setNewCall({ ...newCall, time: e.target.value })} 
-                        className="w-full bg-black/50 border border-rose-500/30 rounded-lg p-2 text-white" 
-                      />
+                      <input type="time" value={newCall.time} onChange={(e) => setNewCall({ ...newCall, time: e.target.value })} className="w-full bg-black/50 border border-rose-500/30 rounded-lg p-2 text-white" />
                     </div>
                   </div>
                   <label className="flex items-center gap-2 cursor-pointer">
-                    <input 
-                      type="checkbox" 
-                      checked={newCall.isFavorite} 
-                      onChange={(e) => setNewCall({ ...newCall, isFavorite: e.target.checked })} 
-                      className="text-rose-500 w-4 h-4" 
-                    />
+                    <input type="checkbox" checked={newCall.isFavorite} onChange={(e) => setNewCall({ ...newCall, isFavorite: e.target.checked })} className="text-rose-500 w-4 h-4" />
                     <span className="text-white">❤️ Mark as Favorite Call</span>
                   </label>
                   <button onClick={handleAddCall} className="w-full bg-rose-500 text-white px-4 py-2 rounded-lg hover:bg-rose-600 transition">
@@ -882,13 +847,11 @@ export default function AdminPanel() {
                   <div className="bg-black/30 rounded-lg p-3 border border-rose-500/20">
                     <label className="text-rose-400 text-sm block mb-2">🎵 Audio Preview</label>
                     <audio src={callPreview} controls className="w-full" />
-                    <p className="text-gray-400 text-xs mt-2">Preview your call recording before adding</p>
                   </div>
                 )}
               </div>
             </div>
             
-            {/* Calls List */}
             <div className="space-y-3">
               <h3 className="text-lg font-semibold text-white">📞 Your Call Recordings ({calls.length})</h3>
               {calls.map(call => (
@@ -899,50 +862,24 @@ export default function AdminPanel() {
                       <div className="grid grid-cols-2 gap-2">
                         <div className="col-span-2">
                           <label className="text-rose-400 text-xs block mb-1">Caller Name</label>
-                          <input 
-                            type="text" 
-                            value={editingCall.name || ''} 
-                            onChange={(e) => setEditingCall({ ...editingCall, name: e.target.value })} 
-                            className="w-full bg-black/50 border border-rose-500/30 rounded-lg p-2 text-white text-sm" 
-                            placeholder="Caller name"
-                          />
+                          <input type="text" value={editingCall.name || ''} onChange={(e) => setEditingCall({ ...editingCall, name: e.target.value })} className="w-full bg-black/50 border border-rose-500/30 rounded-lg p-2 text-white text-sm" />
                         </div>
                         <div>
                           <label className="text-rose-400 text-xs block mb-1">Duration (seconds)</label>
-                          <input 
-                            type="number" 
-                            value={editingCall.duration} 
-                            onChange={(e) => setEditingCall({ ...editingCall, duration: parseInt(e.target.value) || 0 })} 
-                            className="w-full bg-black/50 border border-rose-500/30 rounded-lg p-2 text-white text-sm" 
-                          />
+                          <input type="number" value={editingCall.duration} onChange={(e) => setEditingCall({ ...editingCall, duration: parseInt(e.target.value) || 0 })} className="w-full bg-black/50 border border-rose-500/30 rounded-lg p-2 text-white text-sm" />
                         </div>
                         <div>
                           <label className="text-rose-400 text-xs block mb-1">Date</label>
-                          <input 
-                            type="date" 
-                            value={editingCall.date} 
-                            onChange={(e) => setEditingCall({ ...editingCall, date: e.target.value })} 
-                            className="w-full bg-black/50 border border-rose-500/30 rounded-lg p-2 text-white text-sm" 
-                          />
+                          <input type="date" value={editingCall.date} onChange={(e) => setEditingCall({ ...editingCall, date: e.target.value })} className="w-full bg-black/50 border border-rose-500/30 rounded-lg p-2 text-white text-sm" />
                         </div>
                       </div>
                       <div className="grid grid-cols-2 gap-2">
                         <div>
                           <label className="text-rose-400 text-xs block mb-1">Time</label>
-                          <input 
-                            type="time" 
-                            value={editingCall.time} 
-                            onChange={(e) => setEditingCall({ ...editingCall, time: e.target.value })} 
-                            className="w-full bg-black/50 border border-rose-500/30 rounded-lg p-2 text-white text-sm" 
-                          />
+                          <input type="time" value={editingCall.time} onChange={(e) => setEditingCall({ ...editingCall, time: e.target.value })} className="w-full bg-black/50 border border-rose-500/30 rounded-lg p-2 text-white text-sm" />
                         </div>
                         <label className="flex items-center gap-2">
-                          <input 
-                            type="checkbox" 
-                            checked={editingCall.isFavorite} 
-                            onChange={(e) => setEditingCall({ ...editingCall, isFavorite: e.target.checked })} 
-                            className="text-rose-500" 
-                          />
+                          <input type="checkbox" checked={editingCall.isFavorite} onChange={(e) => setEditingCall({ ...editingCall, isFavorite: e.target.checked })} className="text-rose-500" />
                           <span className="text-white text-sm">Favorite ❤️</span>
                         </label>
                       </div>
@@ -959,9 +896,7 @@ export default function AdminPanel() {
                             <Phone className="w-5 h-5 text-rose-400" />
                           </div>
                           <div>
-                            <p className="text-white text-sm font-medium">
-                              {call.name || 'Bala Bharathi'}
-                            </p>
+                            <p className="text-white text-sm font-medium">{call.name || 'Bala Bharathi'}</p>
                             <p className="text-gray-400 text-xs">
                               {call.date ? new Date(call.date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : 'Date not set'} • {call.time || 'Time not set'}
                             </p>
