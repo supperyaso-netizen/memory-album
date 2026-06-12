@@ -290,7 +290,7 @@ const secretVideos = [
   {
     id: 2,
     title: "VC with my Pookie 🐾",
-    videoUrl: "/videos/secret2.mp4",  // Local video in public/videos/
+    videoUrl: "https://youtu.be/5hoMtVwJJP0",  // Local video in public/videos/
     thumbnail: "/videos/pookie.jpg",
     duration: "46:30",
     date: "07 April 2026"
@@ -298,7 +298,7 @@ const secretVideos = [
   {
     id: 3,
     title: "VC with my Pookie ✨",
-    videoUrl: "", // YouTube link
+    videoUrl: "https://youtu.be/YszJXD2nBJU", // YouTube link
     thumbnail: "/videos/pookie.jpg",
     duration: "01:31:55",
     date: "08 April 2026",
@@ -315,7 +315,7 @@ const secretVideos = [
   {
     id: 5,
     title: "VC with my Pookie 💌",
-    videoUrl: "/videos/secret5.mp4",  // Local video in public/videos/
+    videoUrl: "https://youtu.be/okH9mUbrPlY",  // Local video in public/videos/
     thumbnail: "/videos/pookie.jpg",
     duration: "33:29",
     date: "16 May 2026"

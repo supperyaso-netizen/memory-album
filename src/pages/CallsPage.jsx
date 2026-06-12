@@ -2,7 +2,8 @@ import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   ArrowLeft, Heart, Play, Pause, Phone, Clock, 
-  Star, Volume2, VolumeX, Music, Zap, User, Calendar
+  Star, Volume2, VolumeX, Music, Zap, User, Calendar,
+  Plus, Mic, Upload, X, Check, AlertCircle
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
@@ -110,6 +111,247 @@ const AudioWaveform = ({ isPlaying }) => {
         />
       ))}
     </div>
+  );
+};
+
+// Add Call Modal Component
+const AddCallModal = ({ onClose, onAdd, isOpen }) => {
+  const [callName, setCallName] = useState('');
+  const [callDate, setCallDate] = useState(new Date().toISOString().split('T')[0]);
+  const [callTime, setCallTime] = useState(new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }));
+  const [audioFile, setAudioFile] = useState(null);
+  const [isFavorite, setIsFavorite] = useState(false);
+  const [duration, setDuration] = useState(0);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
+  const audioRef = useRef(null);
+
+  const handleFileSelect = (e) => {
+    const file = e.target.files[0];
+    if (file && file.type.startsWith('audio/')) {
+      setAudioFile(file);
+      setError('');
+      
+      // Create temporary URL to get duration
+      const url = URL.createObjectURL(file);
+      const tempAudio = new Audio(url);
+      tempAudio.addEventListener('loadedmetadata', () => {
+        setDuration(Math.floor(tempAudio.duration));
+        URL.revokeObjectURL(url);
+      });
+      tempAudio.addEventListener('error', () => {
+        setError('Unable to read audio file duration');
+      });
+    } else {
+      setError('Please select a valid audio file (MP3, WAV, etc.)');
+    }
+  };
+
+  const handleSubmit = async () => {
+    if (!callName.trim()) {
+      setError('Please enter a name for this call');
+      return;
+    }
+    if (!audioFile) {
+      setError('Please select an audio file');
+      return;
+    }
+
+    setIsLoading(true);
+    setError('');
+
+    try {
+      // Create blob URL for the audio file
+      const audioUrl = URL.createObjectURL(audioFile);
+      
+      const newCall = {
+        id: Date.now(),
+        name: callName.trim(),
+        date: callDate,
+        time: callTime,
+        audioUrl: audioUrl,
+        duration: duration,
+        durationFormatted: formatDuration(duration),
+        isFavorite: isFavorite,
+        createdAt: new Date().toISOString()
+      };
+
+      // Get existing calls from localStorage
+      const existingCalls = localStorage.getItem('admin_calls');
+      let calls = existingCalls ? JSON.parse(existingCalls) : [];
+      
+      // Add new call
+      calls.push(newCall);
+      
+      // Save back to localStorage
+      localStorage.setItem('admin_calls', JSON.stringify(calls));
+      
+      // Trigger storage event for other tabs/components
+      window.dispatchEvent(new StorageEvent('storage', {
+        key: 'admin_calls',
+        newValue: JSON.stringify(calls)
+      }));
+      
+      onAdd(newCall);
+      onClose();
+    } catch (err) {
+      setError('Failed to save call. Please try again.');
+      console.error(err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md"
+      onClick={onClose}
+    >
+      <motion.div
+        initial={{ scale: 0.9, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        exit={{ scale: 0.9, opacity: 0 }}
+        className="bg-gradient-to-br from-rose-950/30 to-black/80 backdrop-blur-xl rounded-2xl p-6 max-w-md w-full border border-rose-500/30 shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-2xl font-bold text-white flex items-center gap-2">
+            <Mic className="w-6 h-6 text-rose-400" />
+            Add New Call
+          </h2>
+          <button
+            onClick={onClose}
+            className="p-2 hover:bg-white/10 rounded-full transition"
+          >
+            <X className="w-5 h-5 text-gray-400" />
+          </button>
+        </div>
+
+        {error && (
+          <div className="mb-4 p-3 bg-red-500/20 border border-red-500/30 rounded-lg flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 text-red-400" />
+            <p className="text-red-400 text-sm">{error}</p>
+          </div>
+        )}
+
+        <div className="space-y-4">
+          {/* Name Input */}
+          <div>
+            <label className="block text-rose-400 text-sm mb-2">Call Name / Person</label>
+            <input
+              type="text"
+              value={callName}
+              onChange={(e) => setCallName(e.target.value)}
+              placeholder="e.g., Bala Bharathi, Mom, Best Friend"
+              className="w-full bg-black/50 border border-rose-500/30 rounded-lg px-4 py-2 text-white placeholder-gray-500 focus:outline-none focus:border-rose-500 transition"
+            />
+          </div>
+
+          {/* Date and Time */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-rose-400 text-sm mb-2">Date</label>
+              <input
+                type="date"
+                value={callDate}
+                onChange={(e) => setCallDate(e.target.value)}
+                className="w-full bg-black/50 border border-rose-500/30 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-rose-500 transition"
+              />
+            </div>
+            <div>
+              <label className="block text-rose-400 text-sm mb-2">Time</label>
+              <input
+                type="time"
+                value={callTime}
+                onChange={(e) => setCallTime(e.target.value)}
+                className="w-full bg-black/50 border border-rose-500/30 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-rose-500 transition"
+              />
+            </div>
+          </div>
+
+          {/* Audio File Upload */}
+          <div>
+            <label className="block text-rose-400 text-sm mb-2">Audio Recording</label>
+            <div className="relative">
+              <input
+                type="file"
+                accept="audio/*"
+                onChange={handleFileSelect}
+                className="hidden"
+                id="audio-upload"
+              />
+              <label
+                htmlFor="audio-upload"
+                className="flex items-center justify-center gap-2 w-full bg-gradient-to-r from-rose-500/20 to-amber-500/20 border-2 border-dashed border-rose-500/30 rounded-lg px-4 py-6 cursor-pointer hover:border-rose-500 transition group"
+              >
+                <Upload className="w-6 h-6 text-rose-400 group-hover:scale-110 transition" />
+                <div className="text-center">
+                  <p className="text-white text-sm">
+                    {audioFile ? audioFile.name : 'Click to upload audio file'}
+                  </p>
+                  <p className="text-gray-500 text-xs mt-1">
+                    MP3, WAV, M4A, OGG (Max 50MB)
+                  </p>
+                </div>
+              </label>
+            </div>
+            {audioFile && duration > 0 && (
+              <p className="text-green-400 text-xs mt-2">
+                ✓ Audio loaded • Duration: {formatDuration(duration)}
+              </p>
+            )}
+          </div>
+
+          {/* Favorite Toggle */}
+          <div className="flex items-center justify-between p-3 bg-black/30 rounded-lg">
+            <div className="flex items-center gap-2">
+              <Heart className={`w-5 h-5 ${isFavorite ? 'text-rose-500 fill-rose-500' : 'text-gray-400'}`} />
+              <span className="text-white">Mark as Favorite</span>
+            </div>
+            <button
+              onClick={() => setIsFavorite(!isFavorite)}
+              className={`w-12 h-6 rounded-full transition ${
+                isFavorite ? 'bg-rose-500' : 'bg-gray-600'
+              } relative`}
+            >
+              <div
+                className={`absolute top-1 w-4 h-4 bg-white rounded-full transition ${
+                  isFavorite ? 'right-1' : 'left-1'
+                }`}
+              />
+            </button>
+          </div>
+
+          {/* Submit Button */}
+          <button
+            onClick={handleSubmit}
+            disabled={isLoading || !audioFile || !callName.trim()}
+            className="w-full bg-gradient-to-r from-rose-500 to-rose-700 text-white py-3 rounded-lg font-semibold hover:shadow-lg hover:shadow-rose-500/30 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+          >
+            {isLoading ? (
+              <>
+                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                Saving...
+              </>
+            ) : (
+              <>
+                <Check className="w-5 h-5" />
+                Add Call Recording
+              </>
+            )}
+          </button>
+
+          <p className="text-gray-500 text-xs text-center">
+            💡 Tip: Use a voice recorder app to record calls, then upload here
+          </p>
+        </div>
+      </motion.div>
+    </motion.div>
   );
 };
 
@@ -283,7 +525,7 @@ const CallCard = ({ call, isPlaying, onPlay, onPause }) => {
         {/* No Audio File Message */}
         {!isValidAudioUrl && (
           <div className="mb-3 text-amber-400 text-xs bg-amber-500/10 p-2 rounded-lg">
-            📞 Call recording file missing. Please add audio file in Admin Panel.
+            📞 Call recording file missing. Please add audio file using the + button below.
           </div>
         )}
         
@@ -390,12 +632,13 @@ export default function CallsPage() {
   const [playingId, setPlayingId] = useState(null);
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [showAddModal, setShowAddModal] = useState(false);
   
   // Load calls from localStorage
   useEffect(() => {
     loadCalls();
     
-    // Listen for storage changes from admin panel
+    // Listen for storage changes from admin panel or other tabs
     const handleStorageChange = (e) => {
       if (e.key === 'admin_calls') {
         loadCalls();
@@ -427,6 +670,11 @@ export default function CallsPage() {
       console.log("No calls found in localStorage");
       setCalls([]);
     }
+  };
+  
+  const handleAddCall = (newCall) => {
+    loadCalls(); // Reload the calls list
+    setRefreshKey(prev => prev + 1);
   };
   
   const filteredCalls = showFavoritesOnly 
@@ -465,6 +713,13 @@ export default function CallsPage() {
             <ArrowLeft className="w-6 h-6 text-rose-400" />
           </button>
           
+          <button
+            onClick={() => setShowAddModal(true)}
+            className="fixed bottom-6 right-6 z-20 bg-gradient-to-r from-rose-500 to-rose-600 p-4 rounded-full shadow-lg shadow-rose-500/30 hover:shadow-xl hover:shadow-rose-500/40 transition-all group"
+          >
+            <Plus className="w-6 h-6 text-white group-hover:scale-110 transition" />
+          </button>
+          
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -485,9 +740,25 @@ export default function CallsPage() {
             </div>
             <h2 className="text-2xl font-bold text-white mb-2">No Calls Yet</h2>
             <p className="text-gray-400 mb-4">Your special conversations will appear here</p>
-            <p className="text-rose-400 text-sm">Add call recordings from Admin Panel 📞</p>
+            <button
+              onClick={() => setShowAddModal(true)}
+              className="bg-gradient-to-r from-rose-500 to-rose-600 text-white px-6 py-3 rounded-lg font-semibold hover:shadow-lg hover:shadow-rose-500/30 transition flex items-center gap-2 mx-auto"
+            >
+              <Plus className="w-5 h-5" />
+              Add Your First Call Recording
+            </button>
           </motion.div>
         </div>
+        
+        <AnimatePresence>
+          {showAddModal && (
+            <AddCallModal
+              isOpen={showAddModal}
+              onClose={() => setShowAddModal(false)}
+              onAdd={handleAddCall}
+            />
+          )}
+        </AnimatePresence>
       </div>
     );
   }
@@ -540,7 +811,7 @@ export default function CallsPage() {
         <div className="container mx-auto px-4 py-6">
           {/* Favorite Filter Toggle */}
           {calls.length > 0 && (
-            <div className="mb-6 flex justify-end">
+            <div className="mb-6 flex justify-between items-center">
               <button
                 onClick={() => setShowFavoritesOnly(!showFavoritesOnly)}
                 className={`flex items-center gap-2 px-4 py-2 rounded-xl transition-all duration-300 ${
@@ -551,6 +822,15 @@ export default function CallsPage() {
               >
                 <Heart className={`w-4 h-4 ${showFavoritesOnly ? 'fill-white' : ''}`} />
                 {showFavoritesOnly ? 'Showing Favorites' : 'Show Favorites Only'}
+              </button>
+              
+              {/* Add Call Button */}
+              <button
+                onClick={() => setShowAddModal(true)}
+                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-rose-500 to-rose-600 text-white hover:shadow-lg hover:shadow-rose-500/30 transition"
+              >
+                <Plus className="w-4 h-4" />
+                Add Call
               </button>
             </div>
           )}
@@ -582,7 +862,7 @@ export default function CallsPage() {
               <p className="text-gray-400">
                 {showFavoritesOnly 
                   ? 'Mark some calls as favorites to see them here ❤️' 
-                  : 'Your special conversations will appear here 📞'}
+                  : 'Click the + button to add your first call recording 📞'}
               </p>
             </motion.div>
           ) : (
@@ -602,6 +882,24 @@ export default function CallsPage() {
           )}
         </div>
       </div>
+      
+      {/* Floating Add Button (when list is not empty) */}
+      <button
+        onClick={() => setShowAddModal(true)}
+        className="fixed bottom-6 right-6 z-20 bg-gradient-to-r from-rose-500 to-rose-600 p-4 rounded-full shadow-lg shadow-rose-500/30 hover:shadow-xl hover:shadow-rose-500/40 transition-all group"
+      >
+        <Plus className="w-6 h-6 text-white group-hover:scale-110 transition" />
+      </button>
+      
+      <AnimatePresence>
+        {showAddModal && (
+          <AddCallModal
+            isOpen={showAddModal}
+            onClose={() => setShowAddModal(false)}
+            onAdd={handleAddCall}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }

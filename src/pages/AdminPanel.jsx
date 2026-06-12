@@ -4,7 +4,7 @@ import {
   ArrowLeft, Lock, Plus, Image, Video, 
   Heart, Edit, Trash2, Save, X, Check,
   Film, Camera, Star, Phone, Mic, Upload,
-  User, Calendar, Clock, Volume2, RefreshCw, Play
+  User, Calendar, Clock, Volume2, RefreshCw, Play, Pause
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
@@ -49,16 +49,36 @@ export default function AdminPanel() {
   const loadAllData = () => {
     try {
       const savedPhotos = localStorage.getItem('admin_photos');
-      setPhotos(savedPhotos ? JSON.parse(savedPhotos) : []);
+      if (savedPhotos) {
+        const parsedPhotos = JSON.parse(savedPhotos);
+        setPhotos(parsedPhotos);
+      } else {
+        setPhotos([]);
+      }
       
       const savedMemories = localStorage.getItem('admin_special_memories');
-      setSpecialMemories(savedMemories ? JSON.parse(savedMemories) : []);
+      if (savedMemories) {
+        const parsedMemories = JSON.parse(savedMemories);
+        setSpecialMemories(parsedMemories);
+      } else {
+        setSpecialMemories([]);
+      }
       
       const savedVideos = localStorage.getItem('admin_videos');
-      setVideos(savedVideos ? JSON.parse(savedVideos) : []);
+      if (savedVideos) {
+        const parsedVideos = JSON.parse(savedVideos);
+        setVideos(parsedVideos);
+      } else {
+        setVideos([]);
+      }
       
       const savedCalls = localStorage.getItem('admin_calls');
-      setCalls(savedCalls ? JSON.parse(savedCalls) : []);
+      if (savedCalls) {
+        const parsedCalls = JSON.parse(savedCalls);
+        setCalls(parsedCalls);
+      } else {
+        setCalls([]);
+      }
     } catch (error) {
       console.error("Error loading data:", error);
     }
@@ -66,41 +86,67 @@ export default function AdminPanel() {
   
   const saveData = (key, data) => {
     localStorage.setItem(key, JSON.stringify(data));
-    // Dispatch both storage event and custom event for real-time updates
+    // Dispatch storage event for real-time updates
     window.dispatchEvent(new StorageEvent('storage', { key: key, newValue: JSON.stringify(data) }));
     window.dispatchEvent(new CustomEvent(`${key}Updated`));
+  };
+  
+  // Helper: Create blob URL from file
+  const createBlobUrl = (file) => {
+    if (!file) return null;
+    return URL.createObjectURL(file);
+  };
+  
+  // Helper: Revoke blob URL
+  const revokeBlobUrl = (url) => {
+    if (url && url.startsWith('blob:')) {
+      URL.revokeObjectURL(url);
+    }
   };
   
   // ==================== PHOTO MANAGEMENT ====================
   const handlePhotoFileChange = (e) => {
     const file = e.target.files[0];
-    if (file) {
+    if (file && file.type.startsWith('image/')) {
       setNewPhoto({ ...newPhoto, file: file });
       const reader = new FileReader();
       reader.onloadend = () => setPhotoPreview(reader.result);
       reader.readAsDataURL(file);
+    } else {
+      alert('Please select a valid image file');
     }
   };
   
   const handleAddPhoto = () => {
-    if (newPhoto.file && newPhoto.caption) {
+    if (!newPhoto.file) {
+      alert('⚠️ Please select a photo!');
+      return;
+    }
+    if (!newPhoto.caption.trim()) {
+      alert('⚠️ Please add a caption!');
+      return;
+    }
+    
+    const reader = new FileReader();
+    reader.onloadend = () => {
       const photo = {
         id: Date.now(),
-        url: photoPreview,
+        url: reader.result,
         caption: newPhoto.caption,
         date: newPhoto.date || new Date().toLocaleDateString()
       };
       const updatedPhotos = [...photos, photo];
       setPhotos(updatedPhotos);
       saveData('admin_photos', updatedPhotos);
+      
+      // Reset form
       setNewPhoto({ file: null, caption: '', date: '' });
       setPhotoPreview(null);
-      alert('✅ Photo added successfully!');
       const fileInput = document.getElementById('photoFile');
       if (fileInput) fileInput.value = '';
-    } else {
-      alert('⚠️ Please select a photo and add caption!');
-    }
+      alert('✅ Photo added successfully!');
+    };
+    reader.readAsDataURL(newPhoto.file);
   };
   
   const handleUpdatePhoto = () => {
@@ -127,49 +173,81 @@ export default function AdminPanel() {
     const file = e.target.files[0];
     if (!file) return;
     setNewMemory({ ...newMemory, file: file });
-    if (file.type.startsWith('image')) {
+    
+    if (file.type.startsWith('image/')) {
       const reader = new FileReader();
       reader.onloadend = () => setMemoryPreview(reader.result);
       reader.readAsDataURL(file);
-    } else if (file.type.startsWith('video')) {
+    } else if (file.type.startsWith('video/')) {
       setMemoryPreview(URL.createObjectURL(file));
     }
   };
-
+  
   const handleMemoryThumbnailChange = (e) => {
     const file = e.target.files[0];
-    if (file) {
+    if (file && file.type.startsWith('image/')) {
       setNewMemory({ ...newMemory, thumbnail: file });
       const reader = new FileReader();
       reader.onloadend = () => setMemoryThumbnailPreview(reader.result);
       reader.readAsDataURL(file);
     }
   };
-
+  
   const handleAddMemory = () => {
-    if (newMemory.file && newMemory.caption) {
+    if (!newMemory.file) {
+      alert('⚠️ Please select a file!');
+      return;
+    }
+    if (!newMemory.caption.trim()) {
+      alert('⚠️ Please add a caption!');
+      return;
+    }
+    
+    const isVideo = newMemory.file.type.startsWith('video/');
+    
+    if (isVideo) {
+      // For video, store as blob URL
+      const videoUrl = URL.createObjectURL(newMemory.file);
       const memory = {
         id: Date.now(),
-        url: memoryPreview,
+        url: videoUrl,
         caption: newMemory.caption,
         date: newMemory.date || new Date().toLocaleDateString(),
-        type: newMemory.file.type.startsWith('video') ? 'video' : 'image',
-        thumbnail: memoryThumbnailPreview || (newMemory.file.type.startsWith('video') ? null : memoryPreview)
+        type: 'video',
+        thumbnail: memoryThumbnailPreview || null
       };
       const updatedMemories = [...specialMemories, memory];
       setSpecialMemories(updatedMemories);
       saveData('admin_special_memories', updatedMemories);
-      setNewMemory({ file: null, caption: '', date: '', thumbnail: null });
-      setMemoryPreview(null);
-      setMemoryThumbnailPreview(null);
-      alert('✅ Special memory added!');
-      const fileInput = document.getElementById('memoryFile');
-      const thumbInput = document.getElementById('memoryThumbnail');
-      if (fileInput) fileInput.value = '';
-      if (thumbInput) thumbInput.value = '';
+      alert('✅ Video memory added!');
     } else {
-      alert('⚠️ Please select a file and add caption!');
+      // For image, store as base64
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const memory = {
+          id: Date.now(),
+          url: reader.result,
+          caption: newMemory.caption,
+          date: newMemory.date || new Date().toLocaleDateString(),
+          type: 'image',
+          thumbnail: null
+        };
+        const updatedMemories = [...specialMemories, memory];
+        setSpecialMemories(updatedMemories);
+        saveData('admin_special_memories', updatedMemories);
+        alert('✅ Image memory added!');
+      };
+      reader.readAsDataURL(newMemory.file);
     }
+    
+    // Reset form
+    setNewMemory({ file: null, caption: '', date: '', thumbnail: null });
+    setMemoryPreview(null);
+    setMemoryThumbnailPreview(null);
+    const fileInput = document.getElementById('memoryFile');
+    const thumbInput = document.getElementById('memoryThumbnail');
+    if (fileInput) fileInput.value = '';
+    if (thumbInput) thumbInput.value = '';
   };
   
   const handleUpdateMemory = () => {
@@ -184,6 +262,10 @@ export default function AdminPanel() {
   
   const handleDeleteMemory = (id) => {
     if (confirm('Delete this special memory permanently?')) {
+      const memoryToDelete = specialMemories.find(m => m.id === id);
+      if (memoryToDelete?.url?.startsWith('blob:')) {
+        revokeBlobUrl(memoryToDelete.url);
+      }
       const updatedMemories = specialMemories.filter(m => m.id !== id);
       setSpecialMemories(updatedMemories);
       saveData('admin_special_memories', updatedMemories);
@@ -194,15 +276,19 @@ export default function AdminPanel() {
   // ==================== VIDEO MANAGEMENT ====================
   const handleVideoFileChange = (e) => {
     const file = e.target.files[0];
-    if (file) {
+    if (file && file.type.startsWith('video/')) {
       setNewVideo({ ...newVideo, file: file });
+      // Revoke old preview
+      if (videoPreview) revokeBlobUrl(videoPreview);
       setVideoPreview(URL.createObjectURL(file));
+    } else {
+      alert('Please select a valid video file');
     }
   };
   
   const handleThumbnailChange = (e) => {
     const file = e.target.files[0];
-    if (file) {
+    if (file && file.type.startsWith('image/')) {
       setNewVideo({ ...newVideo, thumbnail: file });
       const reader = new FileReader();
       reader.onloadend = () => setThumbnailPreview(reader.result);
@@ -211,29 +297,39 @@ export default function AdminPanel() {
   };
   
   const handleAddVideo = () => {
-    if (newVideo.file && newVideo.title) {
-      const video = {
-        id: Date.now(),
-        videoUrl: videoPreview,
-        title: newVideo.title,
-        thumbnail: thumbnailPreview || "https://images.unsplash.com/photo-1518199266791-5375a83190b5?w=400",
-        duration: newVideo.duration || "0:00",
-        date: newVideo.date || new Date().toLocaleDateString()
-      };
-      const updatedVideos = [...videos, video];
-      setVideos(updatedVideos);
-      saveData('admin_videos', updatedVideos);
-      setNewVideo({ file: null, title: '', thumbnail: null, duration: '', date: '' });
-      setVideoPreview(null);
-      setThumbnailPreview(null);
-      alert('✅ Video added!');
-      const videoInput = document.getElementById('videoFile');
-      const thumbInput = document.getElementById('thumbnailFile');
-      if (videoInput) videoInput.value = '';
-      if (thumbInput) thumbInput.value = '';
-    } else {
-      alert('⚠️ Please select a video and add title!');
+    if (!newVideo.file) {
+      alert('⚠️ Please select a video!');
+      return;
     }
+    if (!newVideo.title.trim()) {
+      alert('⚠️ Please add a title!');
+      return;
+    }
+    
+    const videoUrl = URL.createObjectURL(newVideo.file);
+    const video = {
+      id: Date.now(),
+      videoUrl: videoUrl,
+      title: newVideo.title,
+      thumbnail: thumbnailPreview || "https://images.unsplash.com/photo-1518199266791-5375a83190b5?w=400",
+      duration: newVideo.duration || "0:00",
+      date: newVideo.date || new Date().toLocaleDateString()
+    };
+    
+    const updatedVideos = [...videos, video];
+    setVideos(updatedVideos);
+    saveData('admin_videos', updatedVideos);
+    
+    // Reset form
+    setNewVideo({ file: null, title: '', thumbnail: null, duration: '', date: '' });
+    if (videoPreview) revokeBlobUrl(videoPreview);
+    setVideoPreview(null);
+    setThumbnailPreview(null);
+    const videoInput = document.getElementById('videoFile');
+    const thumbInput = document.getElementById('thumbnailFile');
+    if (videoInput) videoInput.value = '';
+    if (thumbInput) thumbInput.value = '';
+    alert('✅ Video added successfully!');
   };
   
   const handleUpdateVideo = () => {
@@ -248,6 +344,10 @@ export default function AdminPanel() {
   
   const handleDeleteVideo = (id) => {
     if (confirm('Delete this video permanently?')) {
+      const videoToDelete = videos.find(v => v.id === id);
+      if (videoToDelete?.videoUrl?.startsWith('blob:')) {
+        revokeBlobUrl(videoToDelete.videoUrl);
+      }
       const updatedVideos = videos.filter(v => v.id !== id);
       setVideos(updatedVideos);
       saveData('admin_videos', updatedVideos);
@@ -258,9 +358,12 @@ export default function AdminPanel() {
   // ==================== CALL MANAGEMENT ====================
   const handleCallFileChange = (e) => {
     const file = e.target.files[0];
-    if (file) {
+    if (file && file.type.startsWith('audio/')) {
       setNewCall({ ...newCall, file: file });
+      if (callPreview) revokeBlobUrl(callPreview);
       setCallPreview(URL.createObjectURL(file));
+    } else {
+      alert('Please select a valid audio file (MP3, WAV, M4A)');
     }
   };
   
@@ -272,28 +375,34 @@ export default function AdminPanel() {
   };
   
   const handleAddCall = () => {
-    if (newCall.file) {
-      const call = {
-        id: Date.now(),
-        audioUrl: callPreview,
-        duration: parseInt(newCall.duration) || 0,
-        durationFormatted: formatDuration(parseInt(newCall.duration) || 0),
-        date: newCall.date || new Date().toISOString().split('T')[0],
-        time: newCall.time || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        isFavorite: newCall.isFavorite,
-        name: newCall.name || 'Bala Bharathi'
-      };
-      const updatedCalls = [...calls, call];
-      setCalls(updatedCalls);
-      saveData('admin_calls', updatedCalls);
-      setNewCall({ file: null, duration: '', date: '', time: '', isFavorite: false, name: '' });
-      setCallPreview(null);
-      alert('✅ Call recording added!');
-      const fileInput = document.getElementById('callFile');
-      if (fileInput) fileInput.value = '';
-    } else {
+    if (!newCall.file) {
       alert('⚠️ Please select an audio file!');
+      return;
     }
+    
+    const audioUrl = URL.createObjectURL(newCall.file);
+    const call = {
+      id: Date.now(),
+      audioUrl: audioUrl,
+      duration: parseInt(newCall.duration) || 0,
+      durationFormatted: formatDuration(parseInt(newCall.duration) || 0),
+      date: newCall.date || new Date().toISOString().split('T')[0],
+      time: newCall.time || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      isFavorite: newCall.isFavorite,
+      name: newCall.name.trim() || 'Bala Bharathi'
+    };
+    
+    const updatedCalls = [...calls, call];
+    setCalls(updatedCalls);
+    saveData('admin_calls', updatedCalls);
+    
+    // Reset form
+    setNewCall({ file: null, duration: '', date: '', time: '', isFavorite: false, name: '' });
+    if (callPreview) revokeBlobUrl(callPreview);
+    setCallPreview(null);
+    const fileInput = document.getElementById('callFile');
+    if (fileInput) fileInput.value = '';
+    alert('✅ Call recording added successfully!');
   };
   
   const handleUpdateCall = () => {
@@ -308,6 +417,10 @@ export default function AdminPanel() {
   
   const handleDeleteCall = (id) => {
     if (confirm('Delete this call recording permanently?')) {
+      const callToDelete = calls.find(c => c.id === id);
+      if (callToDelete?.audioUrl?.startsWith('blob:')) {
+        revokeBlobUrl(callToDelete.audioUrl);
+      }
       const updatedCalls = calls.filter(c => c.id !== id);
       setCalls(updatedCalls);
       saveData('admin_calls', updatedCalls);
@@ -318,7 +431,7 @@ export default function AdminPanel() {
   // Refresh all data
   const refreshData = () => {
     loadAllData();
-    alert('Data refreshed!');
+    alert('✅ Data refreshed from storage!');
   };
   
   // ==================== LOGIN ====================
@@ -433,47 +546,62 @@ export default function AdminPanel() {
               </h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-3">
-                  <input id="photoFile" type="file" accept="image/*" onChange={handlePhotoFileChange} className="w-full bg-black/50 border border-rose-500/30 rounded-lg p-2 text-white" />
-                  <input type="text" placeholder="Caption *" value={newPhoto.caption} onChange={(e) => setNewPhoto({ ...newPhoto, caption: e.target.value })} className="w-full bg-black/50 border border-rose-500/30 rounded-lg p-2 text-white" />
-                  <input type="date" value={newPhoto.date} onChange={(e) => setNewPhoto({ ...newPhoto, date: e.target.value })} className="w-full bg-black/50 border border-rose-500/30 rounded-lg p-2 text-white" />
-                  <button onClick={handleAddPhoto} className="w-full bg-rose-500 text-white px-4 py-2 rounded-lg hover:bg-rose-600 transition"><Plus className="w-4 h-4 inline mr-1" /> Add Photo</button>
+                  <div>
+                    <label className="text-rose-400 text-sm block mb-1">📸 Photo File *</label>
+                    <input id="photoFile" type="file" accept="image/*" onChange={handlePhotoFileChange} className="w-full bg-black/50 border border-rose-500/30 rounded-lg p-2 text-white" />
+                  </div>
+                  <div>
+                    <label className="text-rose-400 text-sm block mb-1">📝 Caption *</label>
+                    <input type="text" placeholder="Caption *" value={newPhoto.caption} onChange={(e) => setNewPhoto({ ...newPhoto, caption: e.target.value })} className="w-full bg-black/50 border border-rose-500/30 rounded-lg p-2 text-white" />
+                  </div>
+                  <div>
+                    <label className="text-rose-400 text-sm block mb-1">📅 Date</label>
+                    <input type="date" value={newPhoto.date} onChange={(e) => setNewPhoto({ ...newPhoto, date: e.target.value })} className="w-full bg-black/50 border border-rose-500/30 rounded-lg p-2 text-white" />
+                  </div>
+                  <button onClick={handleAddPhoto} className="w-full bg-rose-500 text-white px-4 py-2 rounded-lg hover:bg-rose-600 transition">
+                    <Plus className="w-4 h-4 inline mr-1" /> Add Photo
+                  </button>
                 </div>
                 {photoPreview && (
-                  <div className="flex justify-center">
-                    <img src={photoPreview} alt="Preview" className="w-48 h-48 object-cover rounded-xl" />
+                  <div className="bg-black/30 rounded-lg p-3 border border-rose-500/20">
+                    <label className="text-rose-400 text-sm block mb-2">Preview</label>
+                    <img src={photoPreview} alt="Preview" className="w-full h-48 object-cover rounded-lg" />
                   </div>
                 )}
               </div>
             </div>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-              {photos.map(photo => (
-                <div key={photo.id} className="bg-gradient-to-br from-rose-950/20 to-black/40 rounded-xl p-3 border border-rose-500/20">
-                  {editingPhoto?.id === photo.id ? (
-                    <div className="space-y-2">
-                      <img src={photo.url} alt="Preview" className="w-full h-32 object-cover rounded-lg" />
-                      <input type="text" value={editingPhoto.caption} onChange={(e) => setEditingPhoto({ ...editingPhoto, caption: e.target.value })} className="w-full bg-black/50 border border-rose-500/30 rounded-lg p-2 text-white text-sm" />
-                      <input type="date" value={editingPhoto.date} onChange={(e) => setEditingPhoto({ ...editingPhoto, date: e.target.value })} className="w-full bg-black/50 border border-rose-500/30 rounded-lg p-2 text-white text-sm" />
-                      <div className="flex gap-2">
-                        <button onClick={handleUpdatePhoto} className="flex-1 bg-green-500 text-white px-2 py-1 rounded-lg text-sm"><Check className="w-4 h-4 inline" /> Save</button>
-                        <button onClick={() => setEditingPhoto(null)} className="flex-1 bg-gray-500 text-white px-2 py-1 rounded-lg text-sm"><X className="w-4 h-4 inline" /> Cancel</button>
+            <div className="space-y-3">
+              <h3 className="text-lg font-semibold text-white">Your Photos ({photos.length})</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                {photos.map(photo => (
+                  <div key={photo.id} className="bg-gradient-to-br from-rose-950/20 to-black/40 rounded-xl p-3 border border-rose-500/20">
+                    {editingPhoto?.id === photo.id ? (
+                      <div className="space-y-2">
+                        <img src={photo.url} alt="Preview" className="w-full h-32 object-cover rounded-lg" />
+                        <input type="text" value={editingPhoto.caption} onChange={(e) => setEditingPhoto({ ...editingPhoto, caption: e.target.value })} className="w-full bg-black/50 border border-rose-500/30 rounded-lg p-2 text-white text-sm" />
+                        <input type="date" value={editingPhoto.date} onChange={(e) => setEditingPhoto({ ...editingPhoto, date: e.target.value })} className="w-full bg-black/50 border border-rose-500/30 rounded-lg p-2 text-white text-sm" />
+                        <div className="flex gap-2">
+                          <button onClick={handleUpdatePhoto} className="flex-1 bg-green-500 text-white px-2 py-1 rounded-lg text-sm"><Check className="w-4 h-4 inline" /> Save</button>
+                          <button onClick={() => setEditingPhoto(null)} className="flex-1 bg-gray-500 text-white px-2 py-1 rounded-lg text-sm"><X className="w-4 h-4 inline" /> Cancel</button>
+                        </div>
                       </div>
-                    </div>
-                  ) : (
-                    <>
-                      <img src={photo.url} alt={photo.caption} className="w-full h-40 object-cover rounded-lg mb-2" />
-                      <p className="text-white text-sm font-medium truncate">{photo.caption}</p>
-                      <p className="text-rose-400 text-xs">{photo.date}</p>
-                      <div className="flex gap-2 mt-2">
-                        <button onClick={() => setEditingPhoto(photo)} className="text-blue-400 hover:text-blue-300 text-xs"><Edit className="w-3 h-3 inline" /> Edit</button>
-                        <button onClick={() => handleDeletePhoto(photo.id)} className="text-red-400 hover:text-red-300 text-xs"><Trash2 className="w-3 h-3 inline" /> Delete</button>
-                      </div>
-                    </>
-                  )}
-                </div>
-              ))}
+                    ) : (
+                      <>
+                        <img src={photo.url} alt={photo.caption} className="w-full h-40 object-cover rounded-lg mb-2" />
+                        <p className="text-white text-sm font-medium truncate">{photo.caption}</p>
+                        <p className="text-rose-400 text-xs">{photo.date}</p>
+                        <div className="flex gap-2 mt-2">
+                          <button onClick={() => setEditingPhoto(photo)} className="text-blue-400 hover:text-blue-300 text-xs"><Edit className="w-3 h-3 inline" /> Edit</button>
+                          <button onClick={() => handleDeletePhoto(photo.id)} className="text-red-400 hover:text-red-300 text-xs"><Trash2 className="w-3 h-3 inline" /> Delete</button>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                ))}
+              </div>
+              {photos.length === 0 && <div className="text-center py-8 text-gray-400">No photos yet. Add your first photo! 📸</div>}
             </div>
-            {photos.length === 0 && <div className="text-center py-8 text-gray-400">No photos yet. Add your first photo! 📸</div>}
           </div>
         )}
         
@@ -487,24 +615,32 @@ export default function AdminPanel() {
               </h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-3">
-                  <div className="bg-black/30 rounded-lg p-3 border border-rose-500/20">
-                    <label className="text-rose-400 text-sm block mb-2">📁 Media File (Image/Video) *</label>
+                  <div>
+                    <label className="text-rose-400 text-sm block mb-1">📁 Media File (Image/Video) *</label>
                     <input id="memoryFile" type="file" accept="image/*,video/*" onChange={handleMemoryFileChange} className="w-full bg-black/50 border border-rose-500/30 rounded-lg p-2 text-white" />
                   </div>
-                  <div className="bg-black/30 rounded-lg p-3 border border-rose-500/20">
-                    <label className="text-rose-400 text-sm block mb-2">🖼️ Custom Thumbnail (For Videos)</label>
+                  <div>
+                    <label className="text-rose-400 text-sm block mb-1">🖼️ Custom Thumbnail (For Videos)</label>
                     <input id="memoryThumbnail" type="file" accept="image/*" onChange={handleMemoryThumbnailChange} className="w-full bg-black/50 border border-rose-500/30 rounded-lg p-2 text-white" />
                     <p className="text-gray-500 text-xs mt-1">Add a custom thumbnail for video memories</p>
                   </div>
-                  <input type="text" placeholder="Caption *" value={newMemory.caption} onChange={(e) => setNewMemory({ ...newMemory, caption: e.target.value })} className="w-full bg-black/50 border border-rose-500/30 rounded-lg p-2 text-white" />
-                  <input type="date" value={newMemory.date} onChange={(e) => setNewMemory({ ...newMemory, date: e.target.value })} className="w-full bg-black/50 border border-rose-500/30 rounded-lg p-2 text-white" />
-                  <button onClick={handleAddMemory} className="w-full bg-rose-500 text-white px-4 py-2 rounded-lg hover:bg-rose-600 transition"><Star className="w-4 h-4 inline mr-1" /> Add Memory</button>
+                  <div>
+                    <label className="text-rose-400 text-sm block mb-1">📝 Caption *</label>
+                    <input type="text" placeholder="Caption *" value={newMemory.caption} onChange={(e) => setNewMemory({ ...newMemory, caption: e.target.value })} className="w-full bg-black/50 border border-rose-500/30 rounded-lg p-2 text-white" />
+                  </div>
+                  <div>
+                    <label className="text-rose-400 text-sm block mb-1">📅 Date</label>
+                    <input type="date" value={newMemory.date} onChange={(e) => setNewMemory({ ...newMemory, date: e.target.value })} className="w-full bg-black/50 border border-rose-500/30 rounded-lg p-2 text-white" />
+                  </div>
+                  <button onClick={handleAddMemory} className="w-full bg-rose-500 text-white px-4 py-2 rounded-lg hover:bg-rose-600 transition">
+                    <Star className="w-4 h-4 inline mr-1" /> Add Memory
+                  </button>
                 </div>
                 <div className="space-y-3">
                   {memoryPreview && (
                     <div className="bg-black/30 rounded-lg p-3 border border-rose-500/20">
                       <label className="text-rose-400 text-sm block mb-2">🎬 Media Preview</label>
-                      {newMemory.file?.type?.startsWith('video') ? (
+                      {newMemory.file?.type?.startsWith('video/') ? (
                         <video src={memoryPreview} className="w-full h-40 object-cover rounded-lg" controls />
                       ) : (
                         <img src={memoryPreview} alt="Preview" className="w-full h-40 object-cover rounded-lg" />
@@ -521,65 +657,69 @@ export default function AdminPanel() {
               </div>
             </div>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {specialMemories.map(memory => (
-                <div key={memory.id} className="bg-gradient-to-br from-rose-950/20 to-black/40 rounded-xl p-3 border border-rose-500/20">
-                  {editingMemory?.id === memory.id ? (
-                    <div className="space-y-2">
-                      {memory.type === 'video' ? (
-                        <>
-                          <video src={memory.url} className="w-full h-32 object-cover rounded-lg" controls />
-                          <div className="bg-black/30 rounded-lg p-2">
-                            <label className="text-rose-400 text-xs">Update Thumbnail URL:</label>
-                            <input 
-                              type="text" 
-                              value={editingMemory.thumbnail || ''} 
-                              onChange={(e) => setEditingMemory({ ...editingMemory, thumbnail: e.target.value })} 
-                              className="w-full bg-black/50 border border-rose-500/30 rounded-lg p-2 text-white text-sm mt-1" 
-                              placeholder="Thumbnail image URL"
-                            />
-                          </div>
-                        </>
-                      ) : (
-                        <img src={memory.url} alt="Preview" className="w-full h-32 object-cover rounded-lg" />
-                      )}
-                      <input type="text" value={editingMemory.caption} onChange={(e) => setEditingMemory({ ...editingMemory, caption: e.target.value })} className="w-full bg-black/50 border border-rose-500/30 rounded-lg p-2 text-white text-sm" />
-                      <input type="date" value={editingMemory.date} onChange={(e) => setEditingMemory({ ...editingMemory, date: e.target.value })} className="w-full bg-black/50 border border-rose-500/30 rounded-lg p-2 text-white text-sm" />
-                      <div className="flex gap-2">
-                        <button onClick={handleUpdateMemory} className="flex-1 bg-green-500 text-white px-2 py-1 rounded-lg text-sm"><Check className="w-4 h-4 inline" /> Save</button>
-                        <button onClick={() => setEditingMemory(null)} className="flex-1 bg-gray-500 text-white px-2 py-1 rounded-lg text-sm"><X className="w-4 h-4 inline" /> Cancel</button>
+            <div className="space-y-3">
+              <h3 className="text-lg font-semibold text-white">Special Memories ({specialMemories.length})</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {specialMemories.map(memory => (
+                  <div key={memory.id} className="bg-gradient-to-br from-rose-950/20 to-black-40 rounded-xl p-3 border border-rose-500/20">
+                    {editingMemory?.id === memory.id ? (
+                      <div className="space-y-2">
+                        {memory.type === 'video' ? (
+                          <>
+                            <video src={memory.url} className="w-full h-32 object-cover rounded-lg" controls />
+                            <div className="bg-black/30 rounded-lg p-2">
+                              <label className="text-rose-400 text-xs">Thumbnail URL:</label>
+                              <input 
+                                type="text" 
+                                value={editingMemory.thumbnail || ''} 
+                                onChange={(e) => setEditingMemory({ ...editingMemory, thumbnail: e.target.value })} 
+                                className="w-full bg-black/50 border border-rose-500/30 rounded-lg p-2 text-white text-sm mt-1" 
+                                placeholder="Thumbnail image URL"
+                              />
+                            </div>
+                          </>
+                        ) : (
+                          <img src={memory.url} alt="Preview" className="w-full h-32 object-cover rounded-lg" />
+                        )}
+                        <input type="text" value={editingMemory.caption} onChange={(e) => setEditingMemory({ ...editingMemory, caption: e.target.value })} className="w-full bg-black/50 border border-rose-500/30 rounded-lg p-2 text-white text-sm" />
+                        <input type="date" value={editingMemory.date} onChange={(e) => setEditingMemory({ ...editingMemory, date: e.target.value })} className="w-full bg-black/50 border border-rose-500/30 rounded-lg p-2 text-white text-sm" />
+                        <div className="flex gap-2">
+                          <button onClick={handleUpdateMemory} className="flex-1 bg-green-500 text-white px-2 py-1 rounded-lg text-sm"><Check className="w-4 h-4 inline" /> Save</button>
+                          <button onClick={() => setEditingMemory(null)} className="flex-1 bg-gray-500 text-white px-2 py-1 rounded-lg text-sm"><X className="w-4 h-4 inline" /> Cancel</button>
+                        </div>
                       </div>
-                    </div>
-                  ) : (
-                    <>
-                      {memory.type === 'video' ? (
-                        <div className="relative cursor-pointer" onClick={() => setEditingMemory(memory)}>
-                          <img 
-                            src={memory.thumbnail || "https://images.unsplash.com/photo-1518199266791-5375a83190b5?w=400"} 
-                            alt={memory.caption} 
-                            className="w-full h-40 object-cover rounded-lg mb-2" 
-                          />
-                          <div className="absolute inset-0 flex items-center justify-center">
-                            <div className="w-12 h-12 rounded-full bg-black/50 flex items-center justify-center">
-                              <Play className="w-6 h-6 text-white" />
+                    ) : (
+                      <>
+                        {memory.type === 'video' ? (
+                          <div className="relative">
+                            <img 
+                              src={memory.thumbnail || "https://images.unsplash.com/photo-1518199266791-5375a83190b5?w=400"} 
+                              alt={memory.caption} 
+                              className="w-full h-40 object-cover rounded-lg mb-2 cursor-pointer" 
+                              onClick={() => window.open(memory.url, '_blank')}
+                            />
+                            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                              <div className="w-12 h-12 rounded-full bg-black/50 flex items-center justify-center">
+                                <Play className="w-6 h-6 text-white" />
+                              </div>
                             </div>
                           </div>
+                        ) : (
+                          <img src={memory.url} alt={memory.caption} className="w-full h-40 object-cover rounded-lg mb-2" />
+                        )}
+                        <p className="text-white text-sm font-medium truncate">{memory.caption}</p>
+                        <p className="text-rose-400 text-xs">{memory.date}</p>
+                        <div className="flex gap-2 mt-2">
+                          <button onClick={() => setEditingMemory(memory)} className="text-blue-400 hover:text-blue-300 text-xs"><Edit className="w-3 h-3 inline" /> Edit</button>
+                          <button onClick={() => handleDeleteMemory(memory.id)} className="text-red-400 hover:text-red-300 text-xs"><Trash2 className="w-3 h-3 inline" /> Delete</button>
                         </div>
-                      ) : (
-                        <img src={memory.url} alt={memory.caption} className="w-full h-40 object-cover rounded-lg mb-2" />
-                      )}
-                      <p className="text-white text-sm font-medium truncate">{memory.caption}</p>
-                      <p className="text-rose-400 text-xs">{memory.date}</p>
-                      <div className="flex gap-2 mt-2">
-                        <button onClick={() => setEditingMemory(memory)} className="text-blue-400 hover:text-blue-300 text-xs"><Edit className="w-3 h-3 inline" /> Edit</button>
-                        <button onClick={() => handleDeleteMemory(memory.id)} className="text-red-400 hover:text-red-300 text-xs"><Trash2 className="w-3 h-3 inline" /> Delete</button>
-                      </div>
-                    </>
-                  )}
-                </div>
-              ))}
+                      </>
+                    )}
+                  </div>
+                ))}
+              </div>
+              {specialMemories.length === 0 && <div className="text-center py-8 text-gray-400">No special memories yet. Add your first memory! ✨</div>}
             </div>
-            {specialMemories.length === 0 && <div className="text-center py-8 text-gray-400">No special memories yet. Add your first memory! ✨</div>}
           </div>
         )}
         
@@ -593,19 +733,30 @@ export default function AdminPanel() {
               </h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-3">
-                  <div className="bg-black/30 rounded-lg p-3 border border-rose-500/20">
-                    <label className="text-rose-400 text-sm block mb-2">🎥 Video File *</label>
+                  <div>
+                    <label className="text-rose-400 text-sm block mb-1">🎥 Video File *</label>
                     <input id="videoFile" type="file" accept="video/*" onChange={handleVideoFileChange} className="w-full bg-black/50 border border-rose-500/30 rounded-lg p-2 text-white" />
                   </div>
-                  <div className="bg-black/30 rounded-lg p-3 border border-rose-500/20">
-                    <label className="text-rose-400 text-sm block mb-2">🖼️ Thumbnail Image (Optional)</label>
+                  <div>
+                    <label className="text-rose-400 text-sm block mb-1">🖼️ Thumbnail Image (Optional)</label>
                     <input id="thumbnailFile" type="file" accept="image/*" onChange={handleThumbnailChange} className="w-full bg-black/50 border border-rose-500/30 rounded-lg p-2 text-white" />
                     <p className="text-gray-500 text-xs mt-1">Upload a custom thumbnail for your video</p>
                   </div>
-                  <input type="text" placeholder="Title *" value={newVideo.title} onChange={(e) => setNewVideo({ ...newVideo, title: e.target.value })} className="w-full bg-black/50 border border-rose-500/30 rounded-lg p-2 text-white" />
-                  <input type="text" placeholder="Duration (Optional, e.g., 2:30)" value={newVideo.duration} onChange={(e) => setNewVideo({ ...newVideo, duration: e.target.value })} className="w-full bg-black/50 border border-rose-500/30 rounded-lg p-2 text-white" />
-                  <input type="date" value={newVideo.date} onChange={(e) => setNewVideo({ ...newVideo, date: e.target.value })} className="w-full bg-black/50 border border-rose-500/30 rounded-lg p-2 text-white" />
-                  <button onClick={handleAddVideo} className="w-full bg-rose-500 text-white px-4 py-2 rounded-lg hover:bg-rose-600 transition"><Plus className="w-4 h-4 inline mr-1" /> Add Video</button>
+                  <div>
+                    <label className="text-rose-400 text-sm block mb-1">📝 Title *</label>
+                    <input type="text" placeholder="Title *" value={newVideo.title} onChange={(e) => setNewVideo({ ...newVideo, title: e.target.value })} className="w-full bg-black/50 border border-rose-500/30 rounded-lg p-2 text-white" />
+                  </div>
+                  <div>
+                    <label className="text-rose-400 text-sm block mb-1">⏱️ Duration (e.g., 2:30)</label>
+                    <input type="text" placeholder="Duration (Optional)" value={newVideo.duration} onChange={(e) => setNewVideo({ ...newVideo, duration: e.target.value })} className="w-full bg-black/50 border border-rose-500/30 rounded-lg p-2 text-white" />
+                  </div>
+                  <div>
+                    <label className="text-rose-400 text-sm block mb-1">📅 Date</label>
+                    <input type="date" value={newVideo.date} onChange={(e) => setNewVideo({ ...newVideo, date: e.target.value })} className="w-full bg-black/50 border border-rose-500/30 rounded-lg p-2 text-white" />
+                  </div>
+                  <button onClick={handleAddVideo} className="w-full bg-rose-500 text-white px-4 py-2 rounded-lg hover:bg-rose-600 transition">
+                    <Plus className="w-4 h-4 inline mr-1" /> Add Video
+                  </button>
                 </div>
                 <div className="space-y-3">
                   {videoPreview && (
@@ -624,35 +775,38 @@ export default function AdminPanel() {
               </div>
             </div>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {videos.map(video => (
-                <div key={video.id} className="bg-gradient-to-br from-rose-950/20 to-black/40 rounded-xl p-3 border border-rose-500/20">
-                  {editingVideo?.id === video.id ? (
-                    <div className="space-y-2">
-                      <video src={video.videoUrl} className="w-full h-32 object-cover rounded-lg" controls />
-                      <input type="text" value={editingVideo.title} onChange={(e) => setEditingVideo({ ...editingVideo, title: e.target.value })} className="w-full bg-black/50 border border-rose-500/30 rounded-lg p-2 text-white text-sm" />
-                      <input type="text" value={editingVideo.duration} onChange={(e) => setEditingVideo({ ...editingVideo, duration: e.target.value })} className="w-full bg-black/50 border border-rose-500/30 rounded-lg p-2 text-white text-sm" />
-                      <input type="date" value={editingVideo.date} onChange={(e) => setEditingVideo({ ...editingVideo, date: e.target.value })} className="w-full bg-black/50 border border-rose-500/30 rounded-lg p-2 text-white text-sm" />
-                      <div className="flex gap-2">
-                        <button onClick={handleUpdateVideo} className="flex-1 bg-green-500 text-white px-2 py-1 rounded-lg text-sm"><Check className="w-4 h-4 inline" /> Save</button>
-                        <button onClick={() => setEditingVideo(null)} className="flex-1 bg-gray-500 text-white px-2 py-1 rounded-lg text-sm"><X className="w-4 h-4 inline" /> Cancel</button>
+            <div className="space-y-3">
+              <h3 className="text-lg font-semibold text-white">Your Videos ({videos.length})</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {videos.map(video => (
+                  <div key={video.id} className="bg-gradient-to-br from-rose-950/20 to-black/40 rounded-xl p-3 border border-rose-500/20">
+                    {editingVideo?.id === video.id ? (
+                      <div className="space-y-2">
+                        <video src={video.videoUrl} className="w-full h-32 object-cover rounded-lg" controls />
+                        <input type="text" value={editingVideo.title} onChange={(e) => setEditingVideo({ ...editingVideo, title: e.target.value })} className="w-full bg-black/50 border border-rose-500/30 rounded-lg p-2 text-white text-sm" />
+                        <input type="text" value={editingVideo.duration} onChange={(e) => setEditingVideo({ ...editingVideo, duration: e.target.value })} className="w-full bg-black/50 border border-rose-500/30 rounded-lg p-2 text-white text-sm" />
+                        <input type="date" value={editingVideo.date} onChange={(e) => setEditingVideo({ ...editingVideo, date: e.target.value })} className="w-full bg-black/50 border border-rose-500/30 rounded-lg p-2 text-white text-sm" />
+                        <div className="flex gap-2">
+                          <button onClick={handleUpdateVideo} className="flex-1 bg-green-500 text-white px-2 py-1 rounded-lg text-sm"><Check className="w-4 h-4 inline" /> Save</button>
+                          <button onClick={() => setEditingVideo(null)} className="flex-1 bg-gray-500 text-white px-2 py-1 rounded-lg text-sm"><X className="w-4 h-4 inline" /> Cancel</button>
+                        </div>
                       </div>
-                    </div>
-                  ) : (
-                    <>
-                      <img src={video.thumbnail} alt={video.title} className="w-full h-40 object-cover rounded-lg mb-2" />
-                      <p className="text-white text-sm font-medium truncate">{video.title}</p>
-                      <p className="text-rose-400 text-xs">{video.duration} • {video.date}</p>
-                      <div className="flex gap-2 mt-2">
-                        <button onClick={() => setEditingVideo(video)} className="text-blue-400 hover:text-blue-300 text-xs"><Edit className="w-3 h-3 inline" /> Edit</button>
-                        <button onClick={() => handleDeleteVideo(video.id)} className="text-red-400 hover:text-red-300 text-xs"><Trash2 className="w-3 h-3 inline" /> Delete</button>
-                      </div>
-                    </>
-                  )}
-                </div>
-              ))}
+                    ) : (
+                      <>
+                        <img src={video.thumbnail} alt={video.title} className="w-full h-40 object-cover rounded-lg mb-2" />
+                        <p className="text-white text-sm font-medium truncate">{video.title}</p>
+                        <p className="text-rose-400 text-xs">{video.duration} • {video.date}</p>
+                        <div className="flex gap-2 mt-2">
+                          <button onClick={() => setEditingVideo(video)} className="text-blue-400 hover:text-blue-300 text-xs"><Edit className="w-3 h-3 inline" /> Edit</button>
+                          <button onClick={() => handleDeleteVideo(video.id)} className="text-red-400 hover:text-red-300 text-xs"><Trash2 className="w-3 h-3 inline" /> Delete</button>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                ))}
+              </div>
+              {videos.length === 0 && <div className="text-center py-8 text-gray-400">No videos yet. Add your first video! 🎥</div>}
             </div>
-            {videos.length === 0 && <div className="text-center py-8 text-gray-400">No videos yet. Add your first video! 🎥</div>}
           </div>
         )}
         
@@ -666,47 +820,57 @@ export default function AdminPanel() {
               </h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-3">
-                  <div className="bg-black/30 rounded-lg p-3 border border-rose-500/20">
-                    <label className="text-rose-400 text-sm block mb-2">📞 Audio File * (MP3, WAV, M4A)</label>
+                  <div>
+                    <label className="text-rose-400 text-sm block mb-1">📞 Audio File * (MP3, WAV, M4A)</label>
                     <input id="callFile" type="file" accept="audio/*" onChange={handleCallFileChange} className="w-full bg-black/50 border border-rose-500/30 rounded-lg p-2 text-white" />
                     <p className="text-gray-500 text-xs mt-1">Upload call recording audio file</p>
                   </div>
-                  <input 
-                    type="text" 
-                    placeholder="Caller Name (e.g., Bala Bharathi)" 
-                    value={newCall.name} 
-                    onChange={(e) => setNewCall({ ...newCall, name: e.target.value })} 
-                    className="w-full bg-black/50 border border-rose-500/30 rounded-lg p-2 text-white" 
-                  />
-                  <input 
-                    type="number" 
-                    placeholder="Duration in seconds (Optional)" 
-                    value={newCall.duration} 
-                    onChange={(e) => setNewCall({ ...newCall, duration: e.target.value })} 
-                    className="w-full bg-black/50 border border-rose-500/30 rounded-lg p-2 text-white" 
-                  />
-                  <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-rose-400 text-sm block mb-1">👤 Caller Name</label>
                     <input 
-                      type="date" 
-                      value={newCall.date} 
-                      onChange={(e) => setNewCall({ ...newCall, date: e.target.value })} 
+                      type="text" 
+                      placeholder="Caller Name (e.g., Bala Bharathi)" 
+                      value={newCall.name} 
+                      onChange={(e) => setNewCall({ ...newCall, name: e.target.value })} 
                       className="w-full bg-black/50 border border-rose-500/30 rounded-lg p-2 text-white" 
-                      placeholder="Date"
-                    />
-                    <input 
-                      type="time" 
-                      value={newCall.time} 
-                      onChange={(e) => setNewCall({ ...newCall, time: e.target.value })} 
-                      className="w-full bg-black/50 border border-rose-500/30 rounded-lg p-2 text-white" 
-                      placeholder="Time"
                     />
                   </div>
-                  <label className="flex items-center gap-2">
+                  <div>
+                    <label className="text-rose-400 text-sm block mb-1">⏱️ Duration (seconds)</label>
+                    <input 
+                      type="number" 
+                      placeholder="Duration in seconds (Optional)" 
+                      value={newCall.duration} 
+                      onChange={(e) => setNewCall({ ...newCall, duration: e.target.value })} 
+                      className="w-full bg-black/50 border border-rose-500/30 rounded-lg p-2 text-white" 
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-rose-400 text-sm block mb-1">📅 Date</label>
+                      <input 
+                        type="date" 
+                        value={newCall.date} 
+                        onChange={(e) => setNewCall({ ...newCall, date: e.target.value })} 
+                        className="w-full bg-black/50 border border-rose-500/30 rounded-lg p-2 text-white" 
+                      />
+                    </div>
+                    <div>
+                      <label className="text-rose-400 text-sm block mb-1">⏰ Time</label>
+                      <input 
+                        type="time" 
+                        value={newCall.time} 
+                        onChange={(e) => setNewCall({ ...newCall, time: e.target.value })} 
+                        className="w-full bg-black/50 border border-rose-500/30 rounded-lg p-2 text-white" 
+                      />
+                    </div>
+                  </div>
+                  <label className="flex items-center gap-2 cursor-pointer">
                     <input 
                       type="checkbox" 
                       checked={newCall.isFavorite} 
                       onChange={(e) => setNewCall({ ...newCall, isFavorite: e.target.checked })} 
-                      className="text-rose-500" 
+                      className="text-rose-500 w-4 h-4" 
                     />
                     <span className="text-white">❤️ Mark as Favorite Call</span>
                   </label>
@@ -726,7 +890,7 @@ export default function AdminPanel() {
             
             {/* Calls List */}
             <div className="space-y-3">
-              <h3 className="text-lg font-semibold text-white mb-3">📞 Your Call Recordings ({calls.length})</h3>
+              <h3 className="text-lg font-semibold text-white">📞 Your Call Recordings ({calls.length})</h3>
               {calls.map(call => (
                 <div key={call.id} className="bg-gradient-to-r from-rose-950/20 to-black/40 rounded-xl p-4 border border-rose-500/20">
                   {editingCall?.id === call.id ? (
@@ -743,27 +907,35 @@ export default function AdminPanel() {
                             placeholder="Caller name"
                           />
                         </div>
-                        <input 
-                          type="number" 
-                          value={editingCall.duration} 
-                          onChange={(e) => setEditingCall({ ...editingCall, duration: parseInt(e.target.value) || 0 })} 
-                          className="w-full bg-black/50 border border-rose-500/30 rounded-lg p-2 text-white text-sm" 
-                          placeholder="Duration (seconds)"
-                        />
-                        <input 
-                          type="date" 
-                          value={editingCall.date} 
-                          onChange={(e) => setEditingCall({ ...editingCall, date: e.target.value })} 
-                          className="w-full bg-black/50 border border-rose-500/30 rounded-lg p-2 text-white text-sm" 
-                        />
+                        <div>
+                          <label className="text-rose-400 text-xs block mb-1">Duration (seconds)</label>
+                          <input 
+                            type="number" 
+                            value={editingCall.duration} 
+                            onChange={(e) => setEditingCall({ ...editingCall, duration: parseInt(e.target.value) || 0 })} 
+                            className="w-full bg-black/50 border border-rose-500/30 rounded-lg p-2 text-white text-sm" 
+                          />
+                        </div>
+                        <div>
+                          <label className="text-rose-400 text-xs block mb-1">Date</label>
+                          <input 
+                            type="date" 
+                            value={editingCall.date} 
+                            onChange={(e) => setEditingCall({ ...editingCall, date: e.target.value })} 
+                            className="w-full bg-black/50 border border-rose-500/30 rounded-lg p-2 text-white text-sm" 
+                          />
+                        </div>
                       </div>
                       <div className="grid grid-cols-2 gap-2">
-                        <input 
-                          type="time" 
-                          value={editingCall.time} 
-                          onChange={(e) => setEditingCall({ ...editingCall, time: e.target.value })} 
-                          className="w-full bg-black/50 border border-rose-500/30 rounded-lg p-2 text-white text-sm" 
-                        />
+                        <div>
+                          <label className="text-rose-400 text-xs block mb-1">Time</label>
+                          <input 
+                            type="time" 
+                            value={editingCall.time} 
+                            onChange={(e) => setEditingCall({ ...editingCall, time: e.target.value })} 
+                            className="w-full bg-black/50 border border-rose-500/30 rounded-lg p-2 text-white text-sm" 
+                          />
+                        </div>
                         <label className="flex items-center gap-2">
                           <input 
                             type="checkbox" 
